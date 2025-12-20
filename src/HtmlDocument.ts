@@ -1,7 +1,7 @@
-import { HamsterDocument, HamsterPage } from '@DocumentParser'
-import { IntermediateDocument } from '@typesCommon/HamsterDocument/IntermediateDocument'
+import { HamsterDocument, HamsterPage } from '@hamster-note/document-parser'
+import { IntermediateDocument } from '@hamster-note/types'
 import { HtmlPage } from './HtmlPage'
-import { IntermediateOutline } from '@src/types/common/HamsterDocument'
+import { IntermediateOutline } from '@hamster-note/types'
 
 /**
  * HtmlDocument 类 - HamsterDocument 的 HTML 实现

@@ -13,14 +13,11 @@
  *
  * 注意：本解析器偏"轻量/近似"，并非完整/严格的 HTML 布局渲染。
  */
-import { DocumentParser } from '@src/parser/DocumentParser'
-import { IntermediateDocument } from '@src/types/common/HamsterDocument'
-import { IntermediatePageMap } from '@typesCommon/HamsterDocument/IntermediateDocument'
-import { IntermediatePage } from '@typesCommon/HamsterDocument/IntermediatePage'
-import {
-  IntermediateText,
-  TextDir
-} from '@typesCommon/HamsterDocument/IntermediateText'
+import { DocumentParser } from '@hamster-note/document-parser'
+import { IntermediateDocument } from '@hamster-note/types'
+import { IntermediatePageMap } from '@hamster-note/types'
+import { IntermediatePage } from '@hamster-note/types'
+import { IntermediateText, TextDir } from '@hamster-note/types'
 import { HtmlDocument } from './HtmlDocument'
 
 /**

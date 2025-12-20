@@ -1,4 +1,4 @@
-import { IntermediatePage } from '@src/types/common/HamsterDocument'
+import { IntermediatePage } from '@hamster-note/types'
 
 export function lazyRenderPageDiv(page: IntermediatePage, initialScale = 1) {
   const pageDiv = document.createElement('div')

@@ -1,7 +1,11 @@
-import { HamsterPage, RenderOptions, RenderViews } from '@DocumentParser'
-import { IntermediatePage } from '@typesCommon/HamsterDocument/IntermediatePage'
-import { TextDir } from '@typesCommon/HamsterDocument/IntermediateText'
-import { Number2 } from '@math'
+import {
+  HamsterPage,
+  RenderOptions,
+  RenderViews
+} from '@hamster-note/document-parser'
+import { IntermediatePage } from '@hamster-note/types'
+import { TextDir } from '@hamster-note/types'
+import { Number2 } from '@hamster-note/types'
 
 /**
  * 将数值转换为 CSS 长度：
