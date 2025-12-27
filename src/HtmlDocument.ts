@@ -1,22 +1,18 @@
-import { HamsterDocument, HamsterPage } from '@hamster-note/document-parser'
-import { IntermediateDocument } from '@hamster-note/types'
+import { IntermediateDocument, IntermediateOutline } from '@hamster-note/types'
 import { HtmlPage } from './HtmlPage'
-import { IntermediateOutline } from '@hamster-note/types'
 
 /**
- * HtmlDocument 类 - HamsterDocument 的 HTML 实现
- * 包装 IntermediateDocument，提供懒加载页面获取能力
+ * HtmlDocument 类 - 针对 IntermediateDocument 的 HTML 包装
+ * 提供懒加载页面获取能力
  */
-export class HtmlDocument extends HamsterDocument {
-  constructor(private intermediateDocument: IntermediateDocument) {
-    super()
-  }
+export class HtmlDocument {
+  constructor(private intermediateDocument: IntermediateDocument) {}
 
   /**
    * 获取文档的所有页面
    * 利用 IntermediatePageMap 的懒加载机制
    */
-  async getPages(): Promise<HamsterPage[]> {
+  async getPages(): Promise<HtmlPage[]> {
     const pages = await this.intermediateDocument.pages
     return pages.map((page) => new HtmlPage(page))
   }
@@ -24,12 +20,13 @@ export class HtmlDocument extends HamsterDocument {
   /**
    * 根据页码获取单个页面
    */
-  async getPage(pageNumber: number): Promise<HamsterPage | undefined> {
-    const getPageFn = this.intermediateDocument.getPageByPageNumber(pageNumber)
-    if (!getPageFn) return undefined
+  async getPage(pageNumber: number): Promise<HtmlPage | undefined> {
+    const pagePromise =
+      this.intermediateDocument.getPageByPageNumber(pageNumber)
+    if (!pagePromise) return undefined
 
-    const page = await getPageFn()
-    return new HtmlPage(page)
+    const page = await pagePromise
+    return page ? new HtmlPage(page) : undefined
   }
 
   /**

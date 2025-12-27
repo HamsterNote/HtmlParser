@@ -13,7 +13,7 @@
  *
  * 注意：本解析器偏"轻量/近似"，并非完整/严格的 HTML 布局渲染。
  */
-import { DocumentParser } from '@hamster-note/document-parser'
+import { DocumentParser, ParserInput } from '@hamster-note/document-parser'
 import { IntermediateDocument } from '@hamster-note/types'
 import { IntermediatePageMap } from '@hamster-note/types'
 import { IntermediatePage } from '@hamster-note/types'
@@ -171,7 +171,25 @@ function parseInlineStyle(el: Element): ParsedInlineStyle {
 }
 
 export class HtmlParser extends DocumentParser {
+  static readonly exts = ['html'] as const
   static readonly ext = 'html'
+
+  /**
+   * 实例方法实现：将输入解析为 IntermediateDocument。
+   */
+  async encode(input: ParserInput): Promise<IntermediateDocument> {
+    const doc = await HtmlParser.encode(input)
+    return doc.getIntermediateDocument()
+  }
+
+  /**
+   * 实例方法实现：将中间文档回写为文件数据。
+   */
+  async decode(
+    intermediateDocument: IntermediateDocument
+  ): Promise<ParserInput> {
+    return HtmlParser.decode(intermediateDocument)
+  }
 
   // 复用的内部样式片段
   private static getFragmentStyle(): string {
@@ -446,15 +464,14 @@ export class HtmlParser extends DocumentParser {
    * 5) 若解析失败，退化为按行拆分的纯文本处理
    * 6) 返回 HtmlDocument 实例（包装 IntermediateDocument）
    */
-  static async encode(
-    fileOrBuffer: File | ArrayBuffer
-  ): Promise<HtmlDocument | undefined> {
-    const buffer = await this.toArrayBuffer(fileOrBuffer).catch(() => undefined)
-    if (!buffer) return undefined
+  static async encode(fileOrBuffer: ParserInput): Promise<HtmlDocument> {
+    const buffer = await this.toArrayBuffer(fileOrBuffer)
 
-    // 1) 解码为字符串；失败则直接返回 undefined
+    // 1) 解码为字符串；失败则抛出异常
     const html = this.decodeBufferToString(buffer)
-    if (html == null) return undefined
+    if (html == null) {
+      throw new Error('无法将输入解码为 HTML 文本')
+    }
 
     const id = `html-${Date.now()}`
     const pageWidth = 800
@@ -535,7 +552,7 @@ export class HtmlParser extends DocumentParser {
    */
   static async decode(
     intermediateDocument: IntermediateDocument
-  ): Promise<File | ArrayBuffer | undefined> {
+  ): Promise<File | ArrayBuffer> {
     const inner = await this.decodeToHtml(intermediateDocument)
     const title = intermediateDocument.title || 'document'
     const fullHtml = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${escapeHtml(
