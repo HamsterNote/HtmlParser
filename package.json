@@ -6,7 +6,7 @@
     "build:all": "tsc -p tsconfig.build.json",
     "prepublishOnly": "yarn build:all",
     "lint": "echo 'no-lint'",
-    "test": "jest"
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
   },
   "dependencies": {
     "@hamster-note/document-parser": "^0.2.0",
