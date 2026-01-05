@@ -1,11 +1,14 @@
-import {
-  HamsterPage,
-  RenderOptions,
-  RenderViews
-} from '@hamster-note/document-parser'
-import { IntermediatePage } from '@hamster-note/types'
-import { TextDir } from '@hamster-note/types'
-import { Number2 } from '@hamster-note/types'
+import { IntermediatePage, Number2, TextDir } from '@hamster-note/types'
+
+export enum RenderViews {
+  TEXT = 'TEXT',
+  THUMBNAIL = 'THUMBNAIL'
+}
+
+export interface RenderOptions {
+  scale?: number
+  views?: RenderViews[]
+}
 
 /**
  * 将数值转换为 CSS 长度：
@@ -28,22 +31,20 @@ function cssFontSize(val: number): string {
 }
 
 /**
- * 将CSSStyleDeclaration转换成 string
+ * 将样式对象转换成 style 字符串
  */
-function cssStyleDeclarationToString(style: CSSStyleDeclaration): string {
+function cssStyleRecordToString(style: Record<string, string>): string {
   return Object.entries(style)
     .map(([key, value]) => `${key}:${value}`)
     .join(';')
 }
 
 /**
- * HtmlPage 类 - HamsterPage 的 HTML 实现
+ * HtmlPage 类 - 针对 IntermediatePage 的 HTML 实现
  * 包装 IntermediatePage，提供懒加载渲染能力
  */
-export class HtmlPage extends HamsterPage {
-  constructor(private readonly intermediatePage: IntermediatePage) {
-    super()
-  }
+export class HtmlPage {
+  constructor(private readonly intermediatePage: IntermediatePage) {}
 
   /**
    * 获取页码
@@ -121,7 +122,7 @@ export class HtmlPage extends HamsterPage {
         span.textContent = text.content
 
         // 应用样式
-        const styles = {
+        const styles: Record<string, string> = {
           position: 'absolute',
           left: cssPxOrPercent(text.x * scale),
           top: cssPxOrPercent(text.y * scale),
@@ -142,11 +143,8 @@ export class HtmlPage extends HamsterPage {
           transformOrigin: '0 0'
         }
 
-        const originStyle = new CSSStyleDeclaration()
-        Object.entries(styles).forEach(([key, value]) => {
-          originStyle.setProperty(key, value)
-        })
-        span.style = cssStyleDeclarationToString(originStyle)
+        const styleText = cssStyleRecordToString(styles)
+        span.setAttribute('style', styleText)
 
         // 应用变换
         const transforms: string[] = []
