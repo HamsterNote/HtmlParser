@@ -1,9 +1,10 @@
-name: Publish to npm (main/dev)
+name: Publish to npm (version branches)
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'version/[0-9]+.[0-9]+.[0-9]+'
+      - 'version/[0-9]+.[0-9]+.[0-9]+-**'
 
 permissions:
   contents: read
@@ -19,12 +20,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 解析标签类型并设定 npm dist-tag
-      # 根据 package.json 的 version 判断是否为预发布版本
-      - name: Classify tag and prepare env
+      # 解析分支类型并设定 npm dist-tag
+      - name: Classify branch and prepare env
         run: |
-          TAG="${GITHUB_REF#refs/tags/}"
-          echo "Detected tag: $TAG"
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "Detected branch: $BRANCH"
+
+          # 从分支名称提取版本号：version/1.0.0 -> 1.0.0
+          VERSION="${BRANCH#version/}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
           # 根据 package.json 的 version 判断是否为预发布版本
           PKG_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")
@@ -40,7 +44,7 @@ jobs:
             echo "Version type: Release"
           fi
 
-          echo "Tag version: $TAG"
+          echo "Branch version: $VERSION"
           echo "Package version: $PKG_VERSION"
           echo "Publish tag: $PUBLISH_TAG"
 
