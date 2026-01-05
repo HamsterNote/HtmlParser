@@ -1,12 +1,12 @@
 {
   "name": "@hamster-note/html-parser",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "",
   "scripts": {
     "build:all": "rolldown --config rolldown.config.ts",
     "prepublishOnly": "yarn build:all",
     "lint": "echo 'no-lint'",
-    "test": "jest"
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
   },
   "dependencies": {
     "@hamster-note/document-parser": "^0.3.0",
