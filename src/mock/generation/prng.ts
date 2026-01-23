@@ -17,7 +17,7 @@ export const createPrng = (seed: string): Prng => {
   let state = fnv1a(seed)
   const next = (): number => {
     state = (state * 1664525 + 1013904223) >>> 0
-    return state / 0xffffffff
+    return state / 0x100000000
   }
   const nextInt = (min: number, max: number): number => {
     if (max <= min) return min

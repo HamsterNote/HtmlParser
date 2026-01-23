@@ -10,11 +10,39 @@ import { MockError } from '../errors'
 import { detectConstraintConflicts } from './constraintValidator'
 import { createMockId } from '../store/mockStores'
 
-const normalizeFieldName = (name: string): string => name.toLowerCase()
+const normalizeFieldName = (name: string): string[] => {
+  // Split on non-alphanumeric chars and camelCase boundaries, then lowercase
+  const lowercased = name.toLowerCase()
+  const tokens: string[] = []
+  let currentToken = ''
+  for (let i = 0; i < lowercased.length; i += 1) {
+    const char = lowercased[i]
+    const prevChar = i > 0 ? lowercased[i - 1] : ''
+    if (/[a-z0-9]/.test(char)) {
+      if (
+        prevChar &&
+        ((char >= 'a' && char <= 'z' && prevChar >= 'A' && prevChar <= 'Z') ||
+          (char >= 'A' && char <= 'Z' && prevChar >= 'a' && prevChar <= 'z'))
+      ) {
+        // CamelCase boundary - start new token
+        if (currentToken) tokens.push(currentToken)
+        currentToken = char
+      } else {
+        currentToken += char
+      }
+    } else {
+      // Non-alphanumeric - end current token
+      if (currentToken) tokens.push(currentToken)
+      currentToken = ''
+    }
+  }
+  if (currentToken) tokens.push(currentToken)
+  return tokens
+}
 
 const isSensitiveFieldName = (fieldName: string): boolean => {
-  const normalized = normalizeFieldName(fieldName)
-  return SENSITIVE_FIELD_NAMES.some((key) => normalized.includes(key))
+  const tokens = normalizeFieldName(fieldName)
+  return tokens.some((token) => SENSITIVE_FIELD_NAMES.includes(token))
 }
 
 const buildConflictDiagnostic = (
@@ -34,19 +62,20 @@ const ensureGenerationParams = (
   ...params
 })
 
-export const validateConfigInput = (
-  input: MockDataConfigInput
-): void => {
-  if (!input.name.trim()) {
+export const validateConfigInput = (input: MockDataConfigInput): void => {
+  if (typeof input.name !== 'string' || input.name.trim().length === 0) {
     throw new MockError('CONFIG_INVALID', 'name is required')
   }
-  if (!input.version.trim()) {
+  if (typeof input.version !== 'string' || input.version.trim().length === 0) {
     throw new MockError('CONFIG_INVALID', 'version is required')
   }
-  if (!input.seed.trim()) {
+  if (typeof input.seed !== 'string' || input.seed.trim().length === 0) {
     throw new MockError('CONFIG_INVALID', 'seed is required')
   }
-  if (!input.targetModule.trim()) {
+  if (
+    typeof input.targetModule !== 'string' ||
+    input.targetModule.trim().length === 0
+  ) {
     throw new MockError('CONFIG_INVALID', 'targetModule is required')
   }
   if (!input.fields || input.fields.length === 0) {
@@ -66,7 +95,10 @@ export const validateConfig = (
 
   const conflicts: ConstraintConflict[] = []
   config.fields.forEach((field) => {
-    if (config.sensitiveFieldPolicy === 'reject' && isSensitiveFieldName(field.fieldName)) {
+    if (
+      config.sensitiveFieldPolicy === 'reject' &&
+      isSensitiveFieldName(field.fieldName)
+    ) {
       conflicts.push({
         fieldName: field.fieldName,
         reason: 'sensitive-field',
@@ -78,7 +110,10 @@ export const validateConfig = (
   conflicts.push(...detectConstraintConflicts(config.fields))
 
   if (conflicts.length > 0) {
-    return { valid: false, conflict: buildConflictDiagnostic(config.id, conflicts) }
+    return {
+      valid: false,
+      conflict: buildConflictDiagnostic(config.id, conflicts)
+    }
   }
 
   return { valid: true }

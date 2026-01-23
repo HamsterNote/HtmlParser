@@ -2,6 +2,7 @@ import { FieldConstraint } from '../types'
 import { Prng } from './prng'
 
 const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+const BASE_DATE_MS = 0 // Fixed epoch for deterministic date generation
 
 const buildString = (length: number, prng: Prng): string => {
   const size = Math.max(1, length)
@@ -12,13 +13,17 @@ const buildString = (length: number, prng: Prng): string => {
   return result
 }
 
-const resolveNumberRange = (field: FieldConstraint): { min: number; max: number } => {
+const resolveNumberRange = (
+  field: FieldConstraint
+): { min: number; max: number } => {
   const min = field.range?.min ?? 0
   const max = field.range?.max ?? Math.max(min + 10, 100)
   return { min, max }
 }
 
-const resolveStringLength = (field: FieldConstraint): { min: number; max: number } => {
+const resolveStringLength = (
+  field: FieldConstraint
+): { min: number; max: number } => {
   const min = field.length?.min ?? 1
   const max = field.length?.max ?? Math.max(min + 3, 12)
   return { min, max }
@@ -44,7 +49,7 @@ export const generateNormalValue = (
     case 'boolean':
       return prng.nextInt(0, 1) === 1
     case 'date': {
-      const base = Date.now()
+      const base = BASE_DATE_MS
       const offsetDays = prng.nextInt(0, 30)
       return new Date(base + offsetDays * 24 * 60 * 60 * 1000).toISOString()
     }
@@ -79,15 +84,16 @@ export const getBoundaryValues = (
     case 'boolean':
       return [true, false]
     case 'date':
-      return [new Date(0).toISOString(), new Date().toISOString()]
+      return [
+        new Date(BASE_DATE_MS).toISOString(),
+        new Date(BASE_DATE_MS + 30 * 24 * 60 * 60 * 1000).toISOString()
+      ]
     default:
       return []
   }
 }
 
-export const getExceptionValues = (
-  field: FieldConstraint
-): unknown[] => {
+export const getExceptionValues = (field: FieldConstraint): unknown[] => {
   if (field.exceptionValues && field.exceptionValues.length > 0) {
     return field.exceptionValues
   }

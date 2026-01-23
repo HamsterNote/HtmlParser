@@ -21,10 +21,11 @@ export const computeConfigVersion = (config: MockDataConfigInput): string => {
 }
 
 export const bumpConfigVersion = (version: string): string => {
-  const match = /^v?(\d+)$/.exec(version)
+  const normalized = version.startsWith('v') ? version.slice(1) : version
+  const match = /^(\d+)$/.exec(normalized)
   if (match) {
     const value = Number(match[1]) + 1
     return `v${value}`
   }
-  return `v${version}-1`
+  return `v${normalized}-1`
 }

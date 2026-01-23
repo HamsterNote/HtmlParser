@@ -5,7 +5,6 @@ import {
   CoverageSnapshot
 } from '../types'
 import { createMockId, coverageReportStore } from '../store/mockStores'
-import { calculateCoverageDelta } from '../coverage/coverageEvaluator'
 
 const ensureSnapshot = (snapshot: CoverageSnapshot, label: string): void => {
   const values = [
@@ -16,7 +15,13 @@ const ensureSnapshot = (snapshot: CoverageSnapshot, label: string): void => {
   ]
 
   values.forEach((value) => {
-    if (Number.isNaN(value) || value < 0 || value > 100) {
+    if (
+      typeof value !== 'number' ||
+      Number.isNaN(value) ||
+      !Number.isFinite(value) ||
+      value < 0 ||
+      value > 100
+    ) {
       throw new MockError(
         'COVERAGE_INVALID',
         `${label} coverage values must be between 0 and 100`
@@ -39,7 +44,15 @@ export const createCoverageReport = (
     configId: request.configId,
     baseline: request.baseline,
     current: request.current,
-    delta: calculateCoverageDelta(request.baseline, request.current),
+    delta: {
+      branchDelta:
+        request.current.branchCoverage - request.baseline.branchCoverage,
+      statementDelta:
+        request.current.statementCoverage - request.baseline.statementCoverage,
+      functionDelta:
+        request.current.functionCoverage - request.baseline.functionCoverage,
+      lineDelta: request.current.lineCoverage - request.baseline.lineCoverage
+    },
     uncoveredBranches: request.uncoveredBranches,
     generatedAt: new Date().toISOString()
   }

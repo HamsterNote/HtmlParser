@@ -55,6 +55,19 @@ export const validateMockConfigHandler = (
     }
     return { status: 200, body: result }
   } catch (error) {
+    if (
+      error === 'CONFIG_NOT_FOUND' ||
+      (error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'CONFIG_NOT_FOUND') ||
+      (error &&
+        typeof error === 'object' &&
+        'message' in error &&
+        error.message === 'CONFIG_NOT_FOUND')
+    ) {
+      return { status: 404, body: toErrorResponse(error) }
+    }
     return { status: 400, body: toErrorResponse(error) }
   }
 }

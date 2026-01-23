@@ -7,7 +7,7 @@ const ignores = [
   'coverage/',
   '.specify/',
   '.opencode/',
-  '*.min.js',
+  '*.min.js'
 ]
 
 const resolvedBaseConfig = Array.isArray(baseConfig) ? baseConfig : [baseConfig]
