@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 使用 rolldown 打包
 - 修改 publish workflow，改为 version 分支发包
 
+### Fixed
+- 添加 .gitignore 配置，忽略 .opencode/ 和 .specify/ 工具生成的配置文件
+
 ## [0.2.0] - 2026-01-05
 
 ### Added
