@@ -5,7 +5,7 @@ const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 const BASE_DATE_MS = 0 // Fixed epoch for deterministic date generation
 
 const buildString = (length: number, prng: Prng): string => {
-  const size = Math.max(1, length)
+  const size = Math.max(0, length)
   let result = ''
   for (let i = 0; i < size; i += 1) {
     result += alphabet[prng.nextInt(0, alphabet.length - 1)]

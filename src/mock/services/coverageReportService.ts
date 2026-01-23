@@ -33,7 +33,7 @@ const ensureSnapshot = (snapshot: CoverageSnapshot, label: string): void => {
 export const createCoverageReport = (
   request: CoverageReportRequest
 ): CoverageReport => {
-  if (!request.configId.trim()) {
+  if (typeof request.configId !== 'string' || !request.configId.trim()) {
     throw new MockError('CONFIG_INVALID', 'configId is required')
   }
   ensureSnapshot(request.baseline, 'baseline')
