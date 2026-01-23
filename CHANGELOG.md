@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UnReleased]
+
+### Added
+- 实现Mock数据驱动的单测用例生成模块
+  - Mock数据配置管理：支持创建、更新、查询、删除Mock配置，包含字段约束、边界值、异常值定义
+  - 可确定性数据生成：基于固定随机种子和配置版本化，确保同一配置生成完全一致的数据
+  - Mock数据集生成：支持批量生成指定数量的测试样本，自动包含边界值和异常值样本
+  - 配置版本管理：自动为配置生成版本号，支持配置历史追溯和复用
+  - 覆盖率报告：提供Mock数据生成后的覆盖率评估，包括字段覆盖率和样本覆盖率
+  - 完整的API接口：提供createMockConfig、generateMockDataset、validateMockConfig、getCoverageReport等高层API
+  - 配置验证：支持配置结构的完整性和约束冲突检测
+- 添加单元测试：覆盖率报告、配置验证、数据集生成、可重现性测试
+- 完善ESLint配置：添加忽略规则（node_modules、dist、coverage等工具目录）
+- 添加代码覆盖率配置：在Jest中开启覆盖率收集和多种报告格式
+- 完善项目文档：添加README、AGENTS.md、规格说明文档
+
+### Changed
+- 优化ESLint配置结构，使用数组格式扩展基础配置
+- 优化代码格式，提高可读性
+
+### Fixed
+- 修复.gitignore遗漏*.swp文件的问题
+
 ## [0.3.0] - 2026-01-05
 
 ### Changed

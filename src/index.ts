@@ -165,7 +165,9 @@ function parseInlineStyle(el: Element): ParsedInlineStyle {
     ['fontFamily', map.get('font-family')]
   ]
 
-  entries.forEach(([key, value]) => setInlineStyleValue(result, key, value))
+  entries.forEach(([key, value]) => {
+    setInlineStyleValue(result, key, value)
+  })
 
   return result
 }
@@ -568,3 +570,5 @@ export class HtmlParser extends DocumentParser {
     }
   }
 }
+
+export * from './mock'
