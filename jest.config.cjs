@@ -34,6 +34,9 @@ module.exports = {
       }
     ]
   },
+  collectCoverage: true,
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
   // 不忽略 @hamster-note 包，允许 Jest 转换它们
   transformIgnorePatterns: ['/node_modules/(?!@hamster-note/)']
 }
