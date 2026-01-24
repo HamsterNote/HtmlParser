@@ -33,10 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 修复eslint.config.js末尾逗号问题
   - 修复openapi.yaml中409响应schema从ErrorResponse改为ConflictDiagnostic
   - 添加openapi.yaml安全声明（security: []和bearerAuth scheme）
-  - 修复validateMockConfigHandler未处理CONFIG_NOT_FOUND返回404的问题
-  - 修复fieldValueGenerator使用Date.now()破坏确定性的问题，改为使用固定epoch和PRNG偏移
-  - 修复coverageReportService中ensureSnapshot未验证undefined/null值的问题
-  - 修复configValidator中未检查字符串类型的问题，添加typeof验证
+   - 修复validateMockConfigHandler未处理CONFIG_NOT_FOUND返回404的问题
+   - 修复fieldValueGenerator使用Date.now()破坏确定性的问题，改为使用固定epoch和PRNG偏移
+   - 修复fieldValueGenerator中string类型字段未生成超出最大长度限制异常值的问题
+   - 修复coverageReportService中ensureSnapshot未验证undefined/null值的问题
+   - 修复configValidator中未检查字符串类型的问题，添加typeof验证
   - 修复configValidator中isSensitiveFieldName使用substring匹配的问题，改为token精确匹配
   - 修复bumpConfigVersion生成双v前缀的问题
 
