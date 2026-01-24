@@ -6,7 +6,13 @@ import {
 } from '../types'
 import { createMockId, coverageReportStore } from '../store/mockStores'
 
-const ensureSnapshot = (snapshot: CoverageSnapshot, label: string): void => {
+const ensureSnapshot = (
+  snapshot: CoverageSnapshot | null | undefined,
+  label: string
+): void => {
+  if (snapshot == null) {
+    throw new MockError('COVERAGE_INVALID', `${label} snapshot is required`)
+  }
   const values = [
     snapshot.branchCoverage,
     snapshot.statementCoverage,

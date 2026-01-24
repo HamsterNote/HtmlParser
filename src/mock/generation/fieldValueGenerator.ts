@@ -108,8 +108,10 @@ export const getExceptionValues = (field: FieldConstraint): unknown[] => {
     if (field.range.max != null) exceptions.push(field.range.max + 1)
   }
 
-  if (field.type === 'string' && field.length?.min != null) {
-    if (field.length.min > 0) exceptions.push('')
+  if (field.type === 'string' && field.length != null) {
+    if (field.length.min != null && field.length.min > 0) exceptions.push('')
+    if (field.length.max != null)
+      exceptions.push('A'.repeat(field.length.max + 1))
   }
 
   return exceptions
