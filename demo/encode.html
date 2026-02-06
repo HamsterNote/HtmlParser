@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HtmlParser Demo - Encode</title>
+    <link rel="stylesheet" href="./demo.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Encode Demo</h1>
+        <nav>
+          <a href="./index.html">Home</a>
+          <a href="./encode.html" data-active="true">Encode Page</a>
+        </nav>
+      </header>
+
+      <section class="card">
+        <h2>Sample content</h2>
+        <p>
+          This page contains mixed content: <strong>bold text</strong>,
+          <em>italic text</em>, and <span style="color: #e11d48;">colored text</span>.
+        </p>
+        <p>
+          HtmlParser will walk the DOM, collect text nodes, and estimate a simple
+          layout for each line.
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="actions">
+          <button data-action="parse">Parse current page</button>
+          <span class="status" data-role="status">Idle</span>
+        </div>
+        <pre class="output" data-role="output">
+Click the button to inspect the IntermediateDocument JSON output.
+        </pre>
+      </section>
+    </div>
+
+    <script type="module" src="./demo.js"></script>
+  </body>
+</html>

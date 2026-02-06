@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HtmlParser Demo</title>
+    <link rel="stylesheet" href="./demo.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>HtmlParser Demo</h1>
+        <nav>
+          <a href="./index.html" data-active="true">Home</a>
+          <a href="./encode.html">Encode Page</a>
+        </nav>
+      </header>
+
+      <section class="card">
+        <h2>Multi-page demo</h2>
+        <p>
+          This page shares a minimal layout and a parse button. Click the button
+          below to send the current HTML to HtmlParser and inspect the JSON
+          output.
+        </p>
+        <p>
+          The content is intentionally simple to keep the demo lightweight and
+          framework-free.
+        </p>
+      </section>
+
+      <section class="card">
+        <div class="actions">
+          <button data-action="parse">Parse current page</button>
+          <span class="status" data-role="status">Idle</span>
+        </div>
+        <pre class="output" data-role="output">
+Click the button to see the parsed IntermediateDocument JSON.
+        </pre>
+      </section>
+    </div>
+
+    <script type="module" src="./demo.js"></script>
+  </body>
+</html>
