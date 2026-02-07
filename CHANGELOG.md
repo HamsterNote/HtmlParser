@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - 新增 HtmlParser 多页面 demo（index/encode）与 JSON 输出展示，补充 README 访问说明
+- demo 页面新增 JSON decode 预览区与错误提示，支持 JSON -> HTML 片段回显
 - 实现Mock数据驱动的单测用例生成模块
   - Mock数据配置管理：支持创建、更新、查询、删除Mock配置，包含字段约束、边界值、异常值定义
   - 可确定性数据生成：基于固定随机种子和配置版本化，确保同一配置生成完全一致的数据

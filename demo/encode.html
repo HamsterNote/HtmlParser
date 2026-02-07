@@ -31,11 +31,30 @@
       <section class="card">
         <div class="actions">
           <button data-action="parse">Parse current page</button>
+          <button class="button-secondary" data-action="decode">
+            Decode JSON
+          </button>
           <span class="status" data-role="status">Idle</span>
         </div>
-        <pre class="output" data-role="output">
+        <div class="outputs">
+          <div class="output-panel">
+            <h3>JSON Output</h3>
+            <pre class="output" data-role="output">
 Click the button to inspect the IntermediateDocument JSON output.
-        </pre>
+            </pre>
+          </div>
+          <div class="output-panel">
+            <h3>HTML Preview</h3>
+            <div class="preview" data-role="preview">
+              <span class="preview-placeholder">
+                Decoded HTML preview will appear here.
+              </span>
+            </div>
+            <p class="preview-note" data-role="preview-note">
+              Preview is an approximation based on the IntermediateDocument layout.
+            </p>
+          </div>
+        </div>
       </section>
     </div>
 
