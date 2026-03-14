@@ -3,62 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>HtmlParser Demo</title>
+    <title>HtmlParser Demo - Encode</title>
     <link rel="stylesheet" href="./demo.css" />
   </head>
   <body>
-    <div class="container">
-      <header>
-        <h1>HtmlParser Demo</h1>
-        <nav>
-          <a href="./index.html" data-active="true">Home</a>
-          <a href="./encode.html">Encode Page</a>
-        </nav>
-      </header>
-
-      <section class="card">
-        <h2>Multi-page demo</h2>
-        <p>
-          This page shares a minimal layout and a parse button. Click the button
-          below to send the current HTML to HtmlParser and inspect the JSON
-          output.
-        </p>
-        <p>
-          The content is intentionally simple to keep the demo lightweight and
-          framework-free.
-        </p>
-      </section>
-
-      <section class="card">
-        <div class="actions">
-          <button data-action="parse">Parse current page</button>
-          <button class="button-secondary" data-action="decode">
-            Decode JSON
-          </button>
-          <span class="status" data-role="status">Idle</span>
-        </div>
-        <div class="outputs">
-          <div class="output-panel">
-            <h3>JSON Output</h3>
-            <pre class="output" data-role="output">
-Click the button to see the parsed IntermediateDocument JSON.
-            </pre>
-          </div>
-          <div class="output-panel">
-            <h3>HTML Preview</h3>
-            <div class="preview" data-role="preview">
-              <span class="preview-placeholder">
-                Decoded HTML preview will appear here.
-              </span>
-            </div>
-            <p class="preview-note" data-role="preview-note">
-              Preview is an approximation based on the IntermediateDocument layout.
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <script type="module" src="./demo.js"></script>
+    <script>
+      window.location.replace('./encode.html')
+    </script>
   </body>
 </html>
