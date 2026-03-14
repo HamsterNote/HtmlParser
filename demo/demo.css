@@ -126,6 +126,14 @@ button:hover {
   overflow: auto;
 }
 
+.preview-frame {
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  border: 0;
+  background: #ffffff;
+}
+
 .preview.preview-error {
   border-color: #dc2626;
   background: #fef2f2;
