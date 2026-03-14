@@ -1,6 +1,6 @@
 ## Purpose
 
-TBD.
+This spec defines the lightweight browser demo pages used to exercise HtmlParser encode and decode behavior from real page content. It gives developers and QA a simple, framework-free way to inspect JSON output, move between demo entry points, and verify the end-to-end demo workflow in a local environment.
 
 ## Requirements
 
