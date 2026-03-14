@@ -3,6 +3,7 @@ import {
   parseSerializedDocument,
   serializeIntermediate
 } from './demoDocumentSerialization.js'
+import { renderPreviewHtml, setPreviewMessage } from './demoPreview.js'
 
 const parseButton = document.querySelector('[data-action="parse"]')
 const decodeButton = document.querySelector('[data-action="decode"]')
@@ -23,22 +24,12 @@ const setPreviewNote = (text, isError = false) => {
   previewNote.classList.toggle('is-error', isError)
 }
 
-const setPreviewMessage = (text, isError = false) => {
-  if (!preview) return
-  preview.classList.toggle('preview-error', isError)
-  preview.innerHTML = ''
-  const placeholder = document.createElement('span')
-  placeholder.className = 'preview-placeholder'
-  placeholder.textContent = text
-  preview.appendChild(placeholder)
-}
-
 const handleParse = async () => {
   if (!output) return
 
   setStatus('Parsing...')
   output.textContent = 'Working...'
-  setPreviewMessage('Click "Decode JSON" to render the HTML preview.')
+  setPreviewMessage(preview, 'Click "Decode JSON" to render the HTML preview.')
   setPreviewNote(
     'Preview is an approximation based on the IntermediateDocument layout.'
   )
@@ -58,7 +49,7 @@ const handleParse = async () => {
         : String(error)
     output.textContent = message
     setStatus('Failed')
-    setPreviewMessage('Parsing failed. See the JSON output for details.', true)
+    setPreviewMessage(preview, 'Parsing failed. See the JSON output for details.', true)
     setPreviewNote('Preview is unavailable due to parse errors.', true)
   }
 }
@@ -76,17 +67,14 @@ const handleDecode = async () => {
     const data = JSON.parse(rawText)
     const intermediate = parseSerializedDocument(data)
     const html = await HtmlParser.decodeToHtml(intermediate)
-    if (preview) {
-      preview.classList.remove('preview-error')
-      preview.innerHTML = html
-    }
+    renderPreviewHtml(preview, html)
     setPreviewNote(
       'Preview is an approximation based on the IntermediateDocument layout.'
     )
     setStatus('Decode ready')
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    setPreviewMessage(message, true)
+    setPreviewMessage(preview, message, true)
     setPreviewNote('Preview is unavailable due to decode errors.', true)
     setStatus('Decode failed')
   }
