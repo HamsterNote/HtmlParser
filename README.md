@@ -18,7 +18,6 @@ const intermediate = doc.getIntermediateDocument()
 
 在仓库根目录启动静态服务后访问：
 
-- http://localhost:8000/demo/index.html
 - http://localhost:8000/demo/encode.html
 
 步骤：

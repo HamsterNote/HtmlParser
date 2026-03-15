@@ -126,6 +126,26 @@ function parseItalicValue(raw: string | undefined): boolean | undefined {
   return /italic|oblique/i.test(raw)
 }
 
+const ITALIC_TAGS = new Set(['EM', 'I'])
+
+function parseInlineTagStyle(el: Element): ParsedInlineStyle {
+  const tagName = el.tagName.toUpperCase()
+  if (ITALIC_TAGS.has(tagName)) return { italic: true }
+  return {}
+}
+
+function parseComputedItalicValue(el: Element): boolean | undefined {
+  const view = el.ownerDocument?.defaultView
+  const getComputedStyle = view?.getComputedStyle ?? globalThis.getComputedStyle
+  if (!getComputedStyle) return undefined
+  try {
+    const fontStyle = getComputedStyle(el).fontStyle
+    return parseItalicValue(fontStyle)
+  } catch (error) {
+    return undefined
+  }
+}
+
 function setInlineStyleValue<K extends keyof ParsedInlineStyle>(
   target: ParsedInlineStyle,
   key: K,
@@ -152,7 +172,7 @@ function mergeInlineStyleValue<K extends keyof ParsedInlineStyle>(
  */
 function parseInlineStyle(el: Element): ParsedInlineStyle {
   const map = buildInlineStyleMap(el.getAttribute('style'))
-  const result: ParsedInlineStyle = {}
+  const result: ParsedInlineStyle = parseInlineTagStyle(el)
 
   const entries: Array<
     [keyof ParsedInlineStyle, ParsedInlineStyle[keyof ParsedInlineStyle]]
@@ -169,7 +189,32 @@ function parseInlineStyle(el: Element): ParsedInlineStyle {
     setInlineStyleValue(result, key, value)
   })
 
+  if (result.italic == null) {
+    const computedItalic = parseComputedItalicValue(el)
+    if (computedItalic === true) {
+      setInlineStyleValue(result, 'italic', true)
+    }
+  }
+
   return result
+}
+
+type PendingTextSegment = {
+  content: string
+  style: {
+    fontSize: number
+    lineHeight: number
+    fontWeight: number
+    italic: boolean
+    color: string
+    fontFamily: string
+  }
+  metrics: {
+    width: number
+    height: number
+    ascent: number
+    descent: number
+  }
 }
 
 export class HtmlParser extends DocumentParser {
@@ -337,12 +382,95 @@ export class HtmlParser extends DocumentParser {
     const defaultLineHeight = 1.2
     let idx = 0
     let y = 0
+    const pendingLine: PendingTextSegment[] = []
+    const blockTags = new Set([
+      'ADDRESS',
+      'ARTICLE',
+      'ASIDE',
+      'BLOCKQUOTE',
+      'DIV',
+      'DL',
+      'FIELDSET',
+      'FIGCAPTION',
+      'FIGURE',
+      'FOOTER',
+      'FORM',
+      'H1',
+      'H2',
+      'H3',
+      'H4',
+      'H5',
+      'H6',
+      'HEADER',
+      'HR',
+      'LI',
+      'MAIN',
+      'NAV',
+      'OL',
+      'P',
+      'PRE',
+      'SECTION',
+      'TABLE',
+      'TD',
+      'TH',
+      'TR',
+      'UL'
+    ])
+
+    const flushPendingLine = () => {
+      if (pendingLine.length === 0) return
+
+      const lineHeight = pendingLine.reduce(
+        (maxHeight, segment) => Math.max(maxHeight, segment.metrics.height),
+        1
+      )
+
+      let xCursor = 0
+      pendingLine.forEach((segment, index) => {
+        const x = xCursor
+        texts.push(
+          new IntermediateText({
+            id: `${id}-page-1-text-${idx++}`,
+            content: segment.content,
+            fontSize: segment.style.fontSize,
+            fontFamily: segment.style.fontFamily,
+            fontWeight: segment.style.fontWeight,
+            italic: segment.style.italic,
+            color: segment.style.color,
+            width: segment.metrics.width,
+            height: segment.metrics.height,
+            lineHeight: segment.style.lineHeight,
+            x,
+            y,
+            ascent: segment.metrics.ascent,
+            descent: segment.metrics.descent,
+            vertical: false,
+            dir: detectDir(segment.content),
+            rotate: 0,
+            skew: 0,
+            isEOL: index === pendingLine.length - 1
+          })
+        )
+        xCursor += segment.metrics.width
+      })
+
+      y += lineHeight
+      pendingLine.length = 0
+    }
 
     const walk = (node: Node) => {
       if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as Element
         if (skipTags.has(el.tagName)) return
+        if (el.tagName === 'BR') {
+          flushPendingLine()
+          return
+        }
+
+        const isBlockElement = blockTags.has(el.tagName)
+        if (isBlockElement) flushPendingLine()
         for (const child of Array.from(el.childNodes)) walk(child)
+        if (isBlockElement) flushPendingLine()
         return
       }
       if (node.nodeType !== Node.TEXT_NODE) return
@@ -364,33 +492,16 @@ export class HtmlParser extends DocumentParser {
         sty.lineHeight
       )
 
-      const text = new IntermediateText({
-        id: `${id}-page-1-text-${idx++}`,
+      pendingLine.push({
         content,
-        fontSize: sty.fontSize,
-        fontFamily: sty.fontFamily,
-        fontWeight: sty.fontWeight,
-        italic: sty.italic,
-        color: sty.color,
-        width,
-        height,
-        lineHeight: sty.lineHeight,
-        x: 0,
-        y,
-        ascent,
-        descent,
-        vertical: false,
-        dir: detectDir(content), // 简单的 LTR/RTL 启发式
-        rotate: 0,
-        skew: 0,
-        isEOL: true
+        style: sty,
+        metrics: { width, height, ascent, descent }
       })
-      texts.push(text)
-      y += height
     }
 
     // DFS 遍历 body，收集文本节点
     walk(body)
+    flushPendingLine()
     const pageHeight = Math.max(
       1,
       Math.round(texts.reduce((a, t) => Math.max(a, t.y + t.height), 0))
