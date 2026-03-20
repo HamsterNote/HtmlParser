@@ -55,7 +55,7 @@ export async function serializeIntermediate(intermediate) {
   const outline =
     typeof intermediate.getOutline === 'function'
       ? (intermediate.getOutline() ?? [])
-      : intermediate.outline ?? []
+      : (intermediate.outline ?? [])
 
   return {
     id: intermediate.id,
