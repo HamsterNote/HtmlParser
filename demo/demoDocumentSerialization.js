@@ -1,3 +1,5 @@
+import { HtmlParser } from '../dist/index.js'
+
 function cloneOutlineItem(item) {
   return {
     ...item
@@ -26,9 +28,11 @@ async function resolvePages(intermediate) {
   return Promise.all(
     pages.map(async (page) => {
       const texts =
-        Array.isArray(page.texts) && page.texts.length > 0
+        Array.isArray(page.texts)
           ? page.texts
-          : await page.getTexts()
+          : typeof page.getTexts === 'function'
+            ? await page.getTexts()
+            : []
 
       let thumbnail = page.thumbnail
       if (thumbnail == null && typeof page.getThumbnail === 'function') {
@@ -50,7 +54,7 @@ async function resolvePages(intermediate) {
 export async function serializeIntermediate(intermediate) {
   const outline =
     typeof intermediate.getOutline === 'function'
-      ? intermediate.getOutline() ?? []
+      ? (intermediate.getOutline() ?? [])
       : intermediate.outline ?? []
 
   return {
@@ -89,4 +93,8 @@ export function parseSerializedDocument(serialized) {
       return outline
     }
   }
+}
+
+export async function decodeSerializedDocumentToHtml(serialized) {
+  return HtmlParser.decodeToHtml(parseSerializedDocument(serialized))
 }

@@ -1,5 +1,3 @@
-import type { IntermediateDocument } from '@hamster-note/types'
-
 type SerializedOutlineItem = Record<string, unknown>
 
 type SerializedText = Record<string, unknown>
@@ -11,6 +9,11 @@ type SerializedPage = {
   height: number
   texts: SerializedText[]
   thumbnail?: string
+}
+
+type ParsedSerializedPage = SerializedPage & {
+  getTexts(): Promise<SerializedText[]>
+  getThumbnail(scale?: number): Promise<string | undefined>
 }
 
 export type SerializedIntermediateDocument = {
@@ -31,17 +34,26 @@ export declare function serializeIntermediate(intermediate: {
       height: number
       texts?: SerializedText[]
       thumbnail?: string
-      getTexts(): Promise<SerializedText[]>
-      getThumbnail(scale: number): Promise<string | undefined>
+      getTexts?(): Promise<SerializedText[]>
+      getThumbnail?(scale: number): Promise<string | undefined>
     }>
   >
   getOutline?(): SerializedOutlineItem[] | undefined
   outline?: SerializedOutlineItem[]
 }): Promise<SerializedIntermediateDocument>
 
-export declare function parseSerializedDocument(
-  serialized: SerializedIntermediateDocument
-): IntermediateDocument & {
+export type ParsedSerializedIntermediateDocument = {
+  id: string
+  title: string
   outline: SerializedOutlineItem[]
+  pages: Promise<ParsedSerializedPage[]>
   getOutline(): SerializedOutlineItem[]
 }
+
+export declare function parseSerializedDocument(
+  serialized: SerializedIntermediateDocument
+): ParsedSerializedIntermediateDocument
+
+export declare function decodeSerializedDocumentToHtml(
+  serialized: SerializedIntermediateDocument
+): Promise<string>

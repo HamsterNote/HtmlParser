@@ -26,6 +26,7 @@ logs/
 .DS_Store
 Thumbs.db
 *.swp
+*_DownloadConflict*
 
 # 代码覆盖率报告
 coverage/

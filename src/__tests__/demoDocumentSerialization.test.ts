@@ -1,5 +1,5 @@
-import { HtmlParser } from '../index'
 import {
+  decodeSerializedDocumentToHtml,
   parseSerializedDocument,
   serializeIntermediate
 } from '../../demo/demoDocumentSerialization.js'
@@ -78,10 +78,29 @@ describe('demo document serialization', () => {
     const parsed = parseSerializedDocument(serialized)
     expect(parsed.outline).toEqual(outline)
 
-    const html = await HtmlParser.decodeToHtml(
-      parsed as Parameters<typeof HtmlParser.decodeToHtml>[0]
-    )
+    const html = await decodeSerializedDocumentToHtml(serialized)
     expect(html).toContain('hamster-note-document')
     expect(html).toContain('Hello demo')
+  })
+
+  it('serializes empty page text arrays without requiring getTexts', async () => {
+    const intermediate = {
+      id: 'empty-page-document',
+      title: 'Empty Page Document',
+      pages: Promise.resolve([
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: []
+        }
+      ])
+    }
+
+    const serialized = await serializeIntermediate(intermediate)
+
+    expect(serialized.pages).toHaveLength(1)
+    expect(serialized.pages[0]?.texts).toEqual([])
   })
 })
