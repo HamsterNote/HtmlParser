@@ -50,10 +50,15 @@ export type ParsedSerializedIntermediateDocument = {
   getOutline(): SerializedOutlineItem[]
 }
 
+export type ParsedSerializedDocumentDecoder = (
+  document: ParsedSerializedIntermediateDocument
+) => Promise<string>
+
 export declare function parseSerializedDocument(
   serialized: SerializedIntermediateDocument
 ): ParsedSerializedIntermediateDocument
 
 export declare function decodeSerializedDocumentToHtml(
-  serialized: SerializedIntermediateDocument
+  serialized: SerializedIntermediateDocument,
+  decodeToHtml?: ParsedSerializedDocumentDecoder
 ): Promise<string>

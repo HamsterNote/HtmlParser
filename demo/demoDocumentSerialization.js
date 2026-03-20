@@ -1,5 +1,3 @@
-import { HtmlParser } from '../dist/index.js'
-
 function cloneOutlineItem(item) {
   return {
     ...item
@@ -95,6 +93,19 @@ export function parseSerializedDocument(serialized) {
   }
 }
 
-export async function decodeSerializedDocumentToHtml(serialized) {
+async function loadHtmlParser() {
+  if (typeof window === 'undefined') {
+    return import('../src/index.ts')
+  }
+
+  return import('../dist/index.js')
+}
+
+export async function decodeSerializedDocumentToHtml(serialized, decodeToHtml) {
+  if (typeof decodeToHtml === 'function') {
+    return decodeToHtml(parseSerializedDocument(serialized))
+  }
+
+  const { HtmlParser } = await loadHtmlParser()
   return HtmlParser.decodeToHtml(parseSerializedDocument(serialized))
 }
