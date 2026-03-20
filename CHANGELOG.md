@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UnReleased]
 
+## [0.5.1] - 2026-03-20
+
 ### Fixed
 - 清理根目录与 `demo/`、`dist/` 中误入仓库的 DiskStation/DownloadConflict 冲突副本，并新增 `*_DownloadConflict*` 忽略规则防止再次提交
 - 修复 demo 文档序列化辅助工具的类型声明与运行时行为不一致问题，新增 `decodeSerializedDocumentToHtml()` 封装 decode 流程
