@@ -1,37 +1,47 @@
-const createPreviewDocument = (html) => `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <base href="about:srcdoc" />
-  </head>
-  <body>${html}</body>
-</html>`
+const PREVIEW_ERROR_CLASS = 'preview-error'
 
-const resetPreview = (preview, isError = false) => {
-  preview.classList.toggle('preview-error', isError)
+function getPreviewDocument(preview) {
+  return preview?.ownerDocument ?? document
+}
+
+function resetPreview(preview) {
   preview.replaceChildren()
 }
 
-export const setPreviewMessage = (preview, text, isError = false) => {
-  if (!preview) return
-
-  resetPreview(preview, isError)
-  const placeholder = preview.ownerDocument.createElement('span')
+function createPlaceholderElement(preview, message) {
+  const placeholder = getPreviewDocument(preview).createElement('span')
   placeholder.className = 'preview-placeholder'
-  placeholder.textContent = text
-  preview.appendChild(placeholder)
+  placeholder.textContent = message
+  return placeholder
 }
 
-export const renderPreviewHtml = (preview, html) => {
-  if (!preview) return
+export function setPreviewMessage(preview, message, isError = false) {
+  if (!preview) {
+    return
+  }
 
-  resetPreview(preview, false)
-  const frame = preview.ownerDocument.createElement('iframe')
+  resetPreview(preview)
+  preview.classList.toggle(PREVIEW_ERROR_CLASS, isError)
+  preview.append(createPlaceholderElement(preview, message))
+}
+
+export function renderPreviewHtml(preview, html) {
+  if (!preview) {
+    return
+  }
+
+  resetPreview(preview)
+  preview.classList.remove(PREVIEW_ERROR_CLASS)
+
+  const frame = getPreviewDocument(preview).createElement('iframe')
   frame.className = 'preview-frame'
-  frame.title = 'Decoded HTML preview'
   frame.setAttribute('sandbox', '')
   frame.setAttribute('referrerpolicy', 'no-referrer')
   frame.setAttribute('src', 'about:blank')
-  frame.srcdoc = createPreviewDocument(html)
-  preview.appendChild(frame)
+  frame.setAttribute(
+    'srcdoc',
+    `<!doctype html><html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><base href="about:srcdoc" /></head><body>${html}</body></html>`
+  )
+
+  preview.append(frame)
 }

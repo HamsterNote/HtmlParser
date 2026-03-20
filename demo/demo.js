@@ -1,6 +1,6 @@
 import { HtmlParser } from '../dist/index.js'
 import {
-  parseSerializedDocument,
+  decodeSerializedDocumentToHtml,
   serializeIntermediate
 } from './demoDocumentSerialization.js'
 import { renderPreviewHtml, setPreviewMessage } from './demoPreview.js'
@@ -61,12 +61,11 @@ const handleDecode = async () => {
 
   try {
     const rawText = output.textContent?.trim() ?? ''
-    if (!rawText || (!rawText.startsWith('{') && !rawText.startsWith('['))) {
+    if (!rawText || !rawText.startsWith('{')) {
       throw new Error('JSON output is not available. Run "Parse current page".')
     }
     const data = JSON.parse(rawText)
-    const intermediate = parseSerializedDocument(data)
-    const html = await HtmlParser.decodeToHtml(intermediate)
+    const html = await decodeSerializedDocumentToHtml(data)
     renderPreviewHtml(preview, html)
     setPreviewNote(
       'Preview is an approximation based on the IntermediateDocument layout.'

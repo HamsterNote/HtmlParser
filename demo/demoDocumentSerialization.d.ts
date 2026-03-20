@@ -1,70 +1,64 @@
-type SerializedText = {
-  id: string
-  content: string
-  fontSize: number
-  fontFamily: string
-  fontWeight: number
-  italic: boolean
-  color: string
-  width: number
-  height: number
-  lineHeight: number
-  x: number
-  y: number
-  ascent: number
-  descent: number
-  vertical: boolean
-  dir: string
-  rotate: number
-  skew: number
-  isEOL: boolean
-}
+type SerializedOutlineItem = Record<string, unknown>
 
-type SerializedOutline = SerializedText & {
-  dest?: unknown
-}
+type SerializedText = Record<string, unknown>
 
 type SerializedPage = {
   id: string
   number: number
   width: number
   height: number
-  thumbnail?: string
   texts: SerializedText[]
+  thumbnail?: string
 }
 
-type SerializedDocument = {
+type ParsedSerializedPage = SerializedPage & {
+  getTexts(): Promise<SerializedText[]>
+  getThumbnail(scale?: number): Promise<string | undefined>
+}
+
+export type SerializedIntermediateDocument = {
   id: string
   title: string
-  outline?: SerializedOutline[]
+  outline: SerializedOutlineItem[]
   pages: SerializedPage[]
 }
 
-type ParsedPage = SerializedPage & {
-  getThumbnail: () => Promise<string | undefined>
-}
-
-type ParsedDocument = {
+export declare function serializeIntermediate(intermediate: {
   id: string
   title: string
-  outline?: SerializedOutline[]
-  pages: Promise<ParsedPage[]>
-}
-
-export function parseSerializedDocument(data: unknown): ParsedDocument
-export function serializeIntermediate(intermediate: {
-  id: string
-  title: string
-  outline?: SerializedOutline[]
-  getOutline?: () => SerializedOutline[] | undefined
   pages: Promise<
     Array<{
       id: string
       number: number
       width: number
       height: number
-      getTexts: () => Promise<SerializedText[]>
-      getThumbnail: (scale?: number) => Promise<string | undefined>
+      texts?: SerializedText[]
+      thumbnail?: string
+      getTexts?(): Promise<SerializedText[]>
+      getThumbnail?(scale: number): Promise<string | undefined>
     }>
   >
-}): Promise<SerializedDocument>
+  getOutline?(): SerializedOutlineItem[] | undefined
+  outline?: SerializedOutlineItem[]
+}): Promise<SerializedIntermediateDocument>
+
+export type ParsedSerializedIntermediateDocument = {
+  id: string
+  title: string
+  outline: SerializedOutlineItem[]
+  pages: Promise<ParsedSerializedPage[]>
+  getOutline(): SerializedOutlineItem[]
+}
+
+export type ParsedSerializedDocumentDecoder = (
+  document: ParsedSerializedIntermediateDocument
+) => Promise<string>
+
+export declare function parseSerializedDocument(
+  serialized: SerializedIntermediateDocument
+): ParsedSerializedIntermediateDocument
+
+export declare function decodeSerializedDocumentToHtml(
+  serialized: SerializedIntermediateDocument,
+  decodeToHtml?: ParsedSerializedDocumentDecoder
+): Promise<string>

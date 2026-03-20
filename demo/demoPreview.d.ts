@@ -1,29 +1,19 @@
-type PreviewDocumentLike = {
-  createElement(tagName: string): {
-    className: string
-    title?: string
-    textContent: string | null
-    srcdoc?: string
-    setAttribute(name: string, value: string): void
-  }
-}
-
 type PreviewContainer = {
   classList: {
     toggle(token: string, force?: boolean): boolean
+    remove(...tokens: string[]): void
   }
-  ownerDocument: PreviewDocumentLike
   replaceChildren(...nodes: unknown[]): void
-  appendChild(node: unknown): unknown
+  append(...nodes: unknown[]): void
 }
 
-export function setPreviewMessage(
+export declare function setPreviewMessage(
   preview: PreviewContainer | null,
-  text: string,
+  message: string,
   isError?: boolean
 ): void
 
-export function renderPreviewHtml(
+export declare function renderPreviewHtml(
   preview: PreviewContainer | null,
   html: string
 ): void
