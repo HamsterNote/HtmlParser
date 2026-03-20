@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [UnReleased]
 
+### Changed
+- 创建 `version/0.5.2` 发布分支，后续 0.5.2 发布内容将在此处继续汇总。
+
 ## [0.5.1] - 2026-03-20
 
 ### Fixed
