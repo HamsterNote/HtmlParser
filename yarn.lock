@@ -270,6 +270,11 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-0.2.3.tgz#75a2e8b51cb758a7553d6804a5932d7aace75c39"
   integrity sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==
 
+"@chenglou/pretext@^0.0.6":
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/@chenglou/pretext/-/pretext-0.0.6.tgz#1f4a37d3c8cb24c0e6a2e6b863601ee1337063e5"
+  integrity sha512-U10s4tFeyu3oVHfXuNWwZSKqHXefhaigpcBkGj60qQFRJ+yUoQ+ez3cGJelP7BWDAB58HCgjcTSmOcg+77afBQ==
+
 "@emnapi/core@^1.4.3":
   version "1.7.1"
   resolved "https://registry.yarnpkg.com/@emnapi/core/-/core-1.7.1.tgz#3a79a02dbc84f45884a1806ebb98e5746bdfaac4"
@@ -380,17 +385,15 @@
     "@eslint/core" "^0.17.0"
     levn "^0.4.1"
 
-"@hamster-note/document-parser@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@hamster-note/document-parser/-/document-parser-0.3.0.tgz#5ed8fa27a622eac6a7ff55a5ed02937f47a330a9"
-  integrity sha512-vsy5mFfaeXWBB6NZHk2zPRWS5iGiQI47vvPwbmIqivh5VLWmbSnU53B7KZb2TloyAiOw5ir781NPsb/Vw+OGeQ==
-  dependencies:
-    "@hamster-note/types" "^0.5.1"
+"@hamster-note/document-parser@0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@hamster-note/document-parser/-/document-parser-0.3.1.tgz#48da7a4f7031b98452de6c0e49a8358726f8295e"
+  integrity sha512-1+5A7EYgvvsqN6BJncaHtKOhXOPNn99D9dl4/u82BkjQi6BtBK7DXHXi2rjT3jNeCVPOSg7fWslpS17jOPY0XA==
 
-"@hamster-note/types@^0.5.1":
-  version "0.5.1"
-  resolved "https://registry.yarnpkg.com/@hamster-note/types/-/types-0.5.1.tgz#129220b10cf270fe599f914f578d8d2bd7594e40"
-  integrity sha512-CwX6WovBePOXCIu++8Ig4npXXmkkp+7N4d8tknVxd4kn/c0Rw+0Wx2va4xUWP8R0oPlfe0Y9GJqEcKWShUUnkA==
+"@hamster-note/types@^0.7.0":
+  version "0.7.0"
+  resolved "https://registry.yarnpkg.com/@hamster-note/types/-/types-0.7.0.tgz#4bf759f18286bbb6f9836a0ae2fc9c6f340d5655"
+  integrity sha512-BKC0R3kQ0gkHZFIopqygIaQMJogVmxLTolpMbuyr7dMOLYlwRS3/GwRRaMW8quvDUUA76wBnORg4CDAfnlSwAg==
 
 "@humanfs/core@^0.19.1":
   version "0.19.1"

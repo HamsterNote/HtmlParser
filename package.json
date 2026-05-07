@@ -10,8 +10,9 @@
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
   },
   "dependencies": {
-    "@hamster-note/document-parser": "^0.3.0",
-    "@hamster-note/types": "^0.5.1"
+    "@chenglou/pretext": "^0.0.6",
+    "@hamster-note/document-parser": "0.3.1",
+    "@hamster-note/types": "^0.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
