@@ -22,6 +22,37 @@
           HtmlParser will walk the DOM, collect text nodes, and estimate a simple
           layout for each line.
         </p>
+        <div class="special-cases">
+          <h3>Special text cases</h3>
+          <div class="case-grid">
+            <div class="case-card">
+              <h4>&lt;br&gt;</h4>
+              <p class="case-br">
+                First line<br />Second line
+              </p>
+            </div>
+            <div class="case-card">
+              <h4>Rotated text</h4>
+              <p><span class="case-transform case-rotate">Rotate me</span></p>
+            </div>
+            <div class="case-card">
+              <h4>Scaled text</h4>
+              <p><span class="case-transform case-scale">Scale me</span></p>
+            </div>
+            <div class="case-card">
+              <h4>Transform translate</h4>
+              <p><span class="case-transform case-translate">Translate me</span></p>
+            </div>
+            <div class="case-card">
+              <h4>Shadow text</h4>
+              <p><span class="case-shadow">Shadow me</span></p>
+            </div>
+            <div class="case-card">
+              <h4>Native vertical</h4>
+              <div class="case-vertical">原生竖排文字</div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="card">
@@ -34,7 +65,17 @@
         </div>
         <div class="outputs">
           <div class="output-panel">
-            <h3>JSON Output</h3>
+            <div class="output-panel-header">
+              <h3>JSON Output</h3>
+              <button
+                type="button"
+                class="button-secondary button-toggle"
+                data-action="toggle-output"
+                aria-expanded="true"
+              >
+                Collapse
+              </button>
+            </div>
             <pre class="output" data-role="output">Click the button to inspect the IntermediateDocument JSON output.</pre>
           </div>
           <div class="output-panel">

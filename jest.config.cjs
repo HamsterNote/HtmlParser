@@ -6,6 +6,7 @@ module.exports = {
   // 将 .ts 文件作为 ESM 处理
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^src/(.*)$': '<rootDir>/node_modules/@hamster-note/types/src/$1',
     // 映射 ESM 模块到其编译后的入口文件

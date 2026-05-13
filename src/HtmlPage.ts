@@ -1,4 +1,6 @@
-import { IntermediatePage, Number2, TextDir } from '@hamster-note/types'
+import { IntermediatePage, Number2 } from '@hamster-note/types'
+import { formatTextCssStyle, cssStyleRecordToString } from './textCssStyle.js'
+import { computeTextStyle } from './textStyle.js'
 
 export enum RenderViews {
   TEXT = 'TEXT',
@@ -8,35 +10,6 @@ export enum RenderViews {
 export interface RenderOptions {
   scale?: number
   views?: RenderViews[]
-}
-
-/**
- * 将数值转换为 CSS 长度：
- * - 绝对值 < 1 认为是百分比（例如 0.5 -> 50%）
- * - 否则使用像素 px
- */
-function cssPxOrPercent(val: number): string {
-  if (Math.abs(val) < 1) return `${(val * 100).toFixed(4)}%`
-  return `${val}px`
-}
-
-/**
- * 将数值转换为字体尺寸：
- * - 绝对值 < 1 认为是相对单位 em
- * - 否则使用 px
- */
-function cssFontSize(val: number): string {
-  if (Math.abs(val) < 1) return `${val}em`
-  return `${val}px`
-}
-
-/**
- * 将样式对象转换成 style 字符串
- */
-function cssStyleRecordToString(style: Record<string, string>): string {
-  return Object.entries(style)
-    .map(([key, value]) => `${key}:${value}`)
-    .join(';')
 }
 
 /**
@@ -80,6 +53,11 @@ export class HtmlPage {
   ): Promise<void> {
     const scale = options?.scale ?? 1
     const views = options?.views ?? [RenderViews.TEXT, RenderViews.THUMBNAIL]
+    const ownerDocument = container.ownerDocument ?? globalThis.document
+
+    if (!ownerDocument) {
+      throw new Error('HtmlPage.render requires a document context')
+    }
 
     // 清空容器
     container.innerHTML = ''
@@ -107,7 +85,7 @@ export class HtmlPage {
       const texts = await this.intermediatePage.getTexts()
 
       // 创建文本容器
-      const textContainer = document.createElement('div')
+      const textContainer = ownerDocument.createElement('div')
       textContainer.style.position = 'absolute'
       textContainer.style.top = '0'
       textContainer.style.left = '0'
@@ -116,43 +94,15 @@ export class HtmlPage {
 
       // 渲染所有文本元素
       texts.forEach((text) => {
-        const span = document.createElement('span')
+        const span = ownerDocument.createElement('span')
         span.className = 'hamster-note-text'
         span.id = text.id
         span.textContent = text.content
 
-        // 应用样式
-        const styles: Record<string, string> = {
-          position: 'absolute',
-          left: cssPxOrPercent(text.x * scale),
-          top: cssPxOrPercent(text.y * scale),
-          width: cssPxOrPercent(text.width * scale),
-          height: cssPxOrPercent(text.height * scale),
-          fontSize: cssFontSize(text.fontSize * scale),
-          lineHeight: cssFontSize(text.lineHeight * scale),
-          fontWeight: String(text.fontWeight || 400),
-          fontStyle: text.italic ? 'italic' : 'normal',
-          fontFamily: text.fontFamily || '',
-          color: text.color && text.color !== 'transparent' ? text.color : '',
-          direction: text.dir === TextDir.RTL ? 'rtl' : 'ltr',
-          writingMode:
-            text.vertical || text.dir === TextDir.TTB
-              ? 'vertical-rl'
-              : 'horizontal-tb',
-          whiteSpace: 'pre',
-          transformOrigin: '0 0'
-        }
-
-        const styleText = cssStyleRecordToString(styles)
+        const styleText = cssStyleRecordToString(
+          formatTextCssStyle(computeTextStyle(text), scale)
+        )
         span.setAttribute('style', styleText)
-
-        // 应用变换
-        const transforms: string[] = []
-        if (text.rotate) transforms.push(`rotate(${text.rotate}deg)`)
-        if (text.skew) transforms.push(`skewX(${text.skew}deg)`)
-        if (transforms.length) {
-          span.style.transform = transforms.join(' ')
-        }
 
         textContainer.appendChild(span)
       })
