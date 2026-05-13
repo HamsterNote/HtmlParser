@@ -5,9 +5,26 @@ import {
   IntermediateText,
   TextDir
 } from '@hamster-note/types'
-import { HtmlParser } from '../index'
+import { HtmlParser, setHtml2CanvasLoader } from '../index'
 import { withDomDocument, withGlobalsRemoved } from '../testUtils/domTestUtils.js'
+import { installFakeHtml2Canvas } from '../testUtils/html2canvasTestUtils.js'
 import { resetPretextAdapter, setPretextAdapter } from '../textMeasurement.js'
+
+const exposeGlobalDocument = (document: Document): (() => void) => {
+  const snapshot = Object.getOwnPropertyDescriptor(globalThis, 'document')
+  Object.defineProperty(globalThis, 'document', {
+    configurable: true,
+    value: document
+  })
+
+  return () => {
+    if (snapshot) {
+      Object.defineProperty(globalThis, 'document', snapshot)
+    } else {
+      delete (globalThis as Record<string, unknown>).document
+    }
+  }
+}
 
 describe('HtmlParser', () => {
   afterEach(() => {
@@ -1152,6 +1169,218 @@ describe('HtmlParser', () => {
         testDocument.createRange = originalCreateRange
         testDocument.body.getBoundingClientRect = originalBodyRect
         defaultView.getComputedStyle = originalGetComputedStyle
+      }
+    })
+  })
+
+  it('encode does not call html2canvas before page thumbnail is requested', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas()
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const doc = await HtmlParser.encode(buffer)
+        expect(handle.calls).toHaveLength(0)
+        expect(handle.loaderCallCount).toBe(0)
+        const intermediate = doc.getIntermediateDocument()
+        const pages = await intermediate.pages
+        const result = await pages[0].getThumbnail(0.3)
+        expect(handle.calls).toHaveLength(1)
+        expect(handle.loaderCallCount).toBe(1)
+        expect(result).toBe('data:image/png;base64,FAKE')
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode lazily generates page thumbnail on first getThumbnail call', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas()
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const doc = await HtmlParser.encode(buffer)
+        const pages = await doc.getIntermediateDocument().pages
+
+        const firstResult = await pages[0].getThumbnail(0.3)
+        const secondResult = await pages[0].getThumbnail(0.3)
+
+        expect(firstResult).toBe('data:image/png;base64,FAKE')
+        expect(secondResult).toBe('data:image/png;base64,FAKE')
+        expect(handle.calls).toHaveLength(1)
+        expect(handle.calls[0]?.options).toEqual({
+          backgroundColor: '#ffffff',
+          scale: 0.3,
+          useCORS: true
+        })
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode resolves undefined when html2canvas thumbnail capture fails', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas({ behavior: 'reject', error: new Error('boom') })
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const doc = await HtmlParser.encode(buffer)
+        const pages = await doc.getIntermediateDocument().pages
+
+        await expect(pages[0].getThumbnail(0.3)).resolves.toBeUndefined()
+        expect(handle.calls).toHaveLength(1)
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode deduplicates concurrent thumbnail requests at the same scale', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas({ loaderDelayMs: 5 })
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const doc = await HtmlParser.encode(buffer)
+        const pages = await doc.getIntermediateDocument().pages
+
+        const [a, b] = await Promise.all([
+          pages[0].getThumbnail(0.3),
+          pages[0].getThumbnail(0.3)
+        ])
+
+        expect(handle.calls).toHaveLength(1)
+        expect(a).toBe(b)
+        expect(a).toBe('data:image/png;base64,FAKE')
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode recaptures page thumbnail when a larger scale is requested', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas()
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const doc = await HtmlParser.encode(buffer)
+        const pages = await doc.getIntermediateDocument().pages
+        const page = pages[0]
+
+        const firstResult = await page.getThumbnail(0.3)
+        expect(firstResult).toBe('data:image/png;base64,FAKE')
+        expect(handle.calls).toHaveLength(1)
+
+        const secondResult = await page.getThumbnail(1)
+        expect(secondResult).toBe('data:image/png;base64,FAKE')
+        expect(handle.calls).toHaveLength(2)
+        expect(handle.calls[1]?.options?.scale).toBe(1)
+        expect((page as unknown as { _thumbnail?: string })._thumbnail).toBe(secondResult)
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode keeps lazyRenderPageDiv background image working through the lazy thumbnail path', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas()
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const doc = await HtmlParser.encode(buffer)
+        const intermediate = doc.getIntermediateDocument()
+        const html = await HtmlParser.decodeToHtml(intermediate)
+        expect(html).toContain("background-image:url(&#39;data:image/png;base64,FAKE&#39;)")
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode preserves IntermediatePage.serialize thumbnail after lazy capture mutates the private field', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas()
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const doc = await HtmlParser.encode(buffer)
+        const pages = await doc.getIntermediateDocument().pages
+        const page = pages[0]
+
+        // Sanity: before calling getThumbnail, serialize shows undefined thumbnail
+        const serializedBefore = IntermediatePage.serialize(page)
+        expect(serializedBefore.thumbnail).toBeUndefined()
+
+        // Trigger lazy capture
+        await page.getThumbnail(0.3)
+
+        // After capture, serialize should show the captured data URL
+        const serializedAfter = IntermediatePage.serialize(page)
+        expect(serializedAfter.thumbnail).toBe('data:image/png;base64,FAKE')
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode does not downgrade cached thumbnail when a smaller-scale capture finishes after a larger one', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const pendings: Array<{
+        scale: number
+        resolve: (value: { toDataURL: () => string }) => void
+      }> = []
+
+      setHtml2CanvasLoader(async () => (_element, options) => new Promise((resolve) => {
+        const scale = options?.scale
+        if (typeof scale !== 'number') {
+          throw new Error('expected numeric html2canvas scale')
+        }
+        pendings.push({ scale, resolve })
+      }))
+
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const doc = await HtmlParser.encode(buffer)
+        const pages = await doc.getIntermediateDocument().pages
+        const page = pages[0]
+
+        const smallResultPromise = page.getThumbnail(0.3)
+        const largeResultPromise = page.getThumbnail(1)
+        await Promise.resolve()
+        await Promise.resolve()
+        await Promise.resolve()
+
+        expect(pendings).toHaveLength(2)
+        pendings.find((pending) => pending.scale === 1)?.resolve({
+          toDataURL: () => 'data:image/png;base64,LARGE'
+        })
+        pendings.find((pending) => pending.scale === 0.3)?.resolve({
+          toDataURL: () => 'data:image/png;base64,SMALL'
+        })
+
+        const [smallResult, largeResult] = await Promise.all([
+          smallResultPromise,
+          largeResultPromise
+        ])
+
+        expect(smallResult).toBe('data:image/png;base64,SMALL')
+        expect(largeResult).toBe('data:image/png;base64,LARGE')
+        expect((page as unknown as { _thumbnail?: string })._thumbnail).toBe('data:image/png;base64,LARGE')
+      } finally {
+        setHtml2CanvasLoader(null)
+        restoreDocument()
       }
     })
   })

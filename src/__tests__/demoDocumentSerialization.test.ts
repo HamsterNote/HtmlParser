@@ -308,4 +308,58 @@ describe('demo document serialization', () => {
     expect(html).toContain('left: 158px')
     expect(html).toContain('writing-mode: vertical-rl')
   })
+
+  it('serializeIntermediate preserves populated page thumbnail after lazy capture', async () => {
+    const intermediate = {
+      id: 'thumbnail-doc',
+      title: 'Thumbnail Document',
+      getOutline: () => [],
+      pages: Promise.resolve([
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'Hello thumbnail',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 120,
+              height: 20,
+              polygon: [[0, 0], [120, 0], [120, 20], [0, 20]],
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true
+            }
+          ],
+          thumbnail: undefined,
+          getTexts: async function () {
+            return this.texts
+          },
+          getThumbnail: async () => 'data:image/png;base64,STORED'
+        }
+      ])
+    }
+
+    const serialized = await serializeIntermediate(intermediate)
+    expect(serialized.pages[0].thumbnail).toBe('data:image/png;base64,STORED')
+
+    const parsed = parseSerializedDocument(serialized)
+    const resolvedPages = await parsed.pages
+    const page = resolvedPages[0]
+    const thumbnail = await page.getThumbnail(0.3)
+    expect(thumbnail).toBe('data:image/png;base64,STORED')
+  })
 })

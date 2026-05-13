@@ -23,6 +23,7 @@ import {
 } from '@hamster-note/types'
 import { devConsoleError, devConsoleLog } from './devLog.js'
 import { HtmlDocument } from './HtmlDocument'
+import { buildOffscreenPageElement, type OffscreenPageHandle } from './pageThumbnailDom.js'
 import {
   cssStyleRecordToString,
   formatTextCssStyle
@@ -55,6 +56,97 @@ function resolveIframeHostDocument(): IframeHostDocument | null {
   }
 
   return document
+}
+
+// --- html2canvas lazy-loader injection seam ---
+
+export type Html2CanvasLike = (
+  element: HTMLElement,
+  options?: Record<string, unknown>
+) => Promise<{ toDataURL(type?: string): string }>
+export type Html2CanvasLoader = () => Promise<Html2CanvasLike>
+
+let html2canvasLoaderOverride: Html2CanvasLoader | null = null
+export const setHtml2CanvasLoader = (loader: Html2CanvasLoader | null): void => {
+  html2canvasLoaderOverride = loader
+}
+/** Internal: returns either the override or a dynamic import of html2canvas. */
+export const __getHtml2CanvasLoader = (): Html2CanvasLoader =>
+  html2canvasLoaderOverride
+    ?? (async () => {
+      const mod = await import('html2canvas')
+      // html2canvas ships as default export
+      return ((mod as unknown as { default?: Html2CanvasLike }).default
+        ?? (mod as unknown as Html2CanvasLike))
+    })
+
+function buildLazyThumbnailFn(
+  page: IntermediatePage,
+  texts: IntermediateText[],
+  width: number,
+  height: number
+): (scale?: number) => Promise<string | undefined> {
+  let cachedDataUrl: string | undefined
+  let cachedScale: number | undefined
+  let inFlight: Promise<string | undefined> | null = null
+  let inFlightScale: number | undefined
+
+  return async (scale?: number): Promise<string | undefined> => {
+    const effectiveScale = Math.max(scale ?? 0.3, 0.3)
+
+    if (cachedDataUrl && cachedScale !== undefined && cachedScale >= effectiveScale) {
+      return cachedDataUrl
+    }
+
+    if (inFlight && inFlightScale !== undefined && inFlightScale >= effectiveScale) {
+      return inFlight
+    }
+
+    const localScale = effectiveScale
+    let localPromise: Promise<string | undefined> = Promise.resolve(undefined)
+    localPromise = (async () => {
+      await Promise.resolve()
+      let handle: OffscreenPageHandle | undefined
+      try {
+        const doc = globalThis.document
+        if (!doc) {
+          devConsoleLog('[encode] thumbnail capture skipped: document unavailable')
+          return undefined
+        }
+        handle = buildOffscreenPageElement(
+          { id: page.id, width, height, texts },
+          doc
+        )
+        const loader = __getHtml2CanvasLoader()
+        const html2canvas = await loader()
+        const canvas = await html2canvas(handle.element, {
+          backgroundColor: '#ffffff',
+          scale: localScale,
+          useCORS: true
+        })
+        const dataUrl = canvas.toDataURL('image/png')
+        if (cachedScale === undefined || localScale >= cachedScale) {
+          cachedDataUrl = dataUrl
+          cachedScale = localScale
+          ;(page as unknown as { _thumbnail?: string })._thumbnail = dataUrl
+        }
+        return dataUrl
+      } catch (err) {
+        devConsoleLog('[encode] thumbnail capture failed', err)
+        return undefined
+      } finally {
+        handle?.cleanup()
+        if (inFlight === localPromise) {
+          inFlight = null
+          inFlightScale = undefined
+        }
+      }
+    })()
+
+    inFlight = localPromise
+    inFlightScale = localScale
+    return localPromise
+  }
 }
 
 /**
@@ -1470,8 +1562,8 @@ export class HtmlParser extends DocumentParser {
         id: `${id}-page-1`,
         pageNumber: 1,
         size: { x: pageWidth, y: pageHeight },
-        getData: async () =>
-          new IntermediatePage({
+        getData: async () => {
+          const page = new IntermediatePage({
             id: `${id}-page-1`,
             number: 1,
             width: pageWidth,
@@ -1479,6 +1571,9 @@ export class HtmlParser extends DocumentParser {
             texts,
             thumbnail: undefined
           })
+          page.setGetThumbnail(buildLazyThumbnailFn(page, texts, pageWidth, pageHeight))
+          return page
+        }
       }
     ]
     const pagesMap = IntermediatePageMap.makeByInfoList(infoList)
