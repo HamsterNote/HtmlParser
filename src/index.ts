@@ -390,9 +390,15 @@ function parseTransformNumber(raw: string): number {
   return Number.isFinite(numeric) ? numeric : 0
 }
 
-function parseTransformLength(raw: string): number {
+function parseTransformLength(
+  raw: string,
+  percentBasis = 0
+): number {
   if (!raw) return 0
-  if (raw.endsWith('%')) return Number.NaN
+  if (raw.endsWith('%')) {
+    const ratio = Number.parseFloat(raw) / 100
+    return Number.isFinite(ratio) ? percentBasis * ratio : 0
+  }
   return parseTransformNumber(raw)
 }
 
@@ -427,7 +433,11 @@ function createRotateMatrix(angleDeg: number): Matrix2D {
   }
 }
 
-function parseTransformMatrix(transform: string): Matrix2D {
+function parseTransformMatrix(
+  transform: string,
+  width: number,
+  height: number
+): Matrix2D {
   if (!transform || transform === 'none') return IDENTITY_MATRIX
 
   const operations = Array.from(transform.matchAll(/([a-zA-Z0-9]+)\(([^)]*)\)/g))
@@ -443,14 +453,20 @@ function parseTransformMatrix(transform: string): Matrix2D {
         return multiplyMatrix2D(matrix, { a, b, c, d, e, f })
       }
       case 'translate': {
-        const tx = parseTransformLength(args[0] ?? '0')
-        const ty = parseTransformLength(args[1] ?? '0')
+        const tx = parseTransformLength(args[0] ?? '0', width)
+        const ty = parseTransformLength(args[1] ?? '0', height)
         return multiplyMatrix2D(matrix, createTranslationMatrix(tx, ty))
       }
       case 'translateX':
-        return multiplyMatrix2D(matrix, createTranslationMatrix(parseTransformLength(args[0] ?? '0'), 0))
+        return multiplyMatrix2D(
+          matrix,
+          createTranslationMatrix(parseTransformLength(args[0] ?? '0', width), 0)
+        )
       case 'translateY':
-        return multiplyMatrix2D(matrix, createTranslationMatrix(0, parseTransformLength(args[0] ?? '0')))
+        return multiplyMatrix2D(
+          matrix,
+          createTranslationMatrix(0, parseTransformLength(args[0] ?? '0', height))
+        )
       case 'scale': {
         const scaleX = parseTransformNumber(args[0] ?? '1')
         const scaleY = args[1] != null ? parseTransformNumber(args[1]) : scaleX
@@ -554,7 +570,7 @@ function buildSegmentPolygon(
 
   const width = Math.max(1, metrics.width)
   const height = Math.max(1, metrics.height)
-  const matrix = parseTransformMatrix(segment.style.transform)
+  const matrix = parseTransformMatrix(segment.style.transform, width, height)
   const { x: transformOriginX, y: transformOriginY } = parseTransformOrigin(
     segment.style.transformOrigin,
     width,
@@ -593,18 +609,90 @@ function parseComputedFontWeight(raw: string): number {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 400
 }
 
-function tokenizeRenderedText(raw: string): Array<{ content: string; start: number; end: number }> {
-  const tokens: Array<{ content: string; start: number; end: number }> = []
-  const tokenRegex = /\S+/g
+function getTextSliceRect(
+  node: Text,
+  start: number,
+  end: number
+): DOMRect | null {
+  const doc = node.ownerDocument
+  const range = doc.createRange()
+  range.setStart(node, start)
+  range.setEnd(node, end)
 
-  for (const match of raw.matchAll(tokenRegex)) {
-    const content = match[0]
-    const start = match.index
-    if (start == null) continue
-    tokens.push({ content, start, end: start + content.length })
+  try {
+    const rect = range.getBoundingClientRect?.()
+    return rect ?? null
+  } finally {
+    range.detach?.()
+  }
+}
+
+function findMatchingLineRectIndex(
+  rect: DOMRect,
+  lineRects: RectLike[]
+): number {
+  let bestIndex = 0
+  let bestDistance = Number.POSITIVE_INFINITY
+
+  lineRects.forEach((lineRect, index) => {
+    const distance = Math.abs(lineRect.top - rect.top)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      bestIndex = index
+    }
+  })
+
+  return bestIndex
+}
+
+function collectWrappedLineSegments(
+  node: Text,
+  raw: string,
+  nodeRects: RectLike[]
+): Array<{ content: string; rect: RectLike }> {
+  const lineRects = nodeRects.filter((rect) => isValidRect(rect))
+  if (lineRects.length <= 1) return []
+
+  const ranges = new Map<number, { start: number; end: number }>()
+
+  for (let index = 0; index < raw.length; index++) {
+    const char = raw[index]
+    if (!char || /\s/.test(char)) continue
+
+    const rect = getTextSliceRect(node, index, index + 1)
+    if (!isValidRect(rect)) continue
+
+    const lineIndex = findMatchingLineRectIndex(rect, lineRects)
+    const currentRange = ranges.get(lineIndex)
+
+    if (!currentRange) {
+      ranges.set(lineIndex, { start: index, end: index + 1 })
+      continue
+    }
+
+    currentRange.start = Math.min(currentRange.start, index)
+    currentRange.end = Math.max(currentRange.end, index + 1)
   }
 
-  return tokens
+  return lineRects
+    .map((rect, lineIndex) => {
+      const range = ranges.get(lineIndex)
+      if (!range) return null
+
+      const content = normalizeTextContent(raw.slice(range.start, range.end))
+      if (!content) return null
+
+      return {
+        content,
+        rect: {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height
+        }
+      }
+    })
+    .filter((segment): segment is { content: string; rect: RectLike } => segment != null)
 }
 
 export class HtmlParser extends DocumentParser {
@@ -825,24 +913,6 @@ export class HtmlParser extends DocumentParser {
     }
   }
 
-  private static getTokenRect(
-    node: Text,
-    start: number,
-    end: number
-  ): DOMRect | null {
-    const doc = node.ownerDocument
-    const range = doc.createRange()
-    range.setStart(node, start)
-    range.setEnd(node, end)
-
-    try {
-      const rect = range.getBoundingClientRect?.()
-      return rect ?? null
-    } finally {
-      range.detach?.()
-    }
-  }
-
   private static collectRenderedTextSegments(doc: Document): RenderedTextSegment[] {
     const body = doc.body
     const defaultFontSize = 16
@@ -879,19 +949,16 @@ export class HtmlParser extends DocumentParser {
       const hasMultipleRects = nodeRects.filter((rect) => isValidRect(rect)).length > 1
 
       if (hasMultipleRects) {
-        const tokens = tokenizeRenderedText(raw)
-        tokens.forEach((token) => {
-          const rect = HtmlParser.getTokenRect(textNode, token.start, token.end)
-          if (!isValidRect(rect)) return
-
+        const lineSegments = collectWrappedLineSegments(textNode, raw, nodeRects)
+        lineSegments.forEach((lineSegment) => {
           segments.push({
-            content: token.content,
+            content: lineSegment.content,
             style,
             rect: {
-              left: rect.left,
-              top: rect.top,
-              width: rect.width,
-              height: rect.height
+              left: lineSegment.rect.left,
+              top: lineSegment.rect.top,
+              width: lineSegment.rect.width,
+              height: lineSegment.rect.height
             }
           })
         })

@@ -65,24 +65,37 @@ export const computeTextStyle = (text: IntermediateText): TextStylePayload => {
   const targetHeight = computeTargetHeight(text.polygon)
   devConsoleLog('[computeTextStyle] Polygon 几何信息', { rotationDeg, targetWidth, targetHeight })
 
-  const baseline = measureTextBaseline(
-    text.content,
-    text.fontSize,
-    text.fontFamily,
-    text.fontWeight,
-    text.italic,
-    targetWidth,
-    text.lineHeight
-  )
-  devConsoleLog('[computeTextStyle] 基准测量', baseline)
+  let scaleX = 1
+  let scaleY = 1
 
-  const { scaleX, scaleY } = computeScale(
-    baseline.width,
-    baseline.height,
-    targetWidth,
-    targetHeight
-  )
-  devConsoleLog('[computeTextStyle] 缩放计算', { scaleX, scaleY })
+  try {
+    const baseline = measureTextBaseline(
+      text.content,
+      text.fontSize,
+      text.fontFamily,
+      text.fontWeight,
+      text.italic,
+      targetWidth,
+      text.lineHeight
+    )
+    devConsoleLog('[computeTextStyle] 基准测量', baseline)
+
+    const scale = computeScale(
+      baseline.width,
+      baseline.height,
+      targetWidth,
+      targetHeight
+    )
+    scaleX = scale.scaleX
+    scaleY = scale.scaleY
+    devConsoleLog('[computeTextStyle] 缩放计算', { scaleX, scaleY })
+  } catch (error) {
+    devConsoleLog('[computeTextStyle] 基准测量失败，回退到无缩放样式', {
+      error,
+      targetWidth,
+      targetHeight
+    })
+  }
 
   const applyInferredScale = shouldApplyInferredScale(
     text,

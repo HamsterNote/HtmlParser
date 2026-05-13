@@ -7,10 +7,19 @@ import { renderPreviewHtml, setPreviewMessage } from './demoPreview.js'
 
 const parseButton = document.querySelector('[data-action="parse"]')
 const decodeButton = document.querySelector('[data-action="decode"]')
+const toggleOutputButton = document.querySelector('[data-action="toggle-output"]')
 const output = document.querySelector('[data-role="output"]')
 const status = document.querySelector('[data-role="status"]')
 const preview = document.querySelector('[data-role="preview"]')
 const previewNote = document.querySelector('[data-role="preview-note"]')
+
+const setOutputCollapsed = (collapsed) => {
+  if (!output || !toggleOutputButton) return
+
+  output.classList.toggle('is-collapsed', collapsed)
+  toggleOutputButton.textContent = collapsed ? 'Expand' : 'Collapse'
+  toggleOutputButton.setAttribute('aria-expanded', String(!collapsed))
+}
 
 const setStatus = (text) => {
   if (status) {
@@ -88,5 +97,12 @@ if (parseButton) {
 if (decodeButton) {
   decodeButton.addEventListener('click', () => {
     void handleDecode()
+  })
+}
+
+if (toggleOutputButton) {
+  toggleOutputButton.addEventListener('click', () => {
+    const isCollapsed = output?.classList.contains('is-collapsed') ?? false
+    setOutputCollapsed(!isCollapsed)
   })
 }

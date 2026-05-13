@@ -167,4 +167,44 @@ describe('renderer alignment', () => {
       expect(html).toContain('transform-origin: 0 0')
     })
   })
+
+  it('renders text even when baseline measurement fails', async () => {
+    setPretextAdapter({
+      measure: () => {
+        throw new Error('measurement failed')
+      }
+    })
+
+    const text = buildText([
+      [10, 20],
+      [110, 20],
+      [110, 60],
+      [10, 60]
+    ])
+
+    await withDomGlobals(async () => {
+      const container = globalThis.document.createElement(
+        'div'
+      ) as unknown as HTMLDivElement
+      const page = new HtmlPage(
+        new IntermediatePage({
+          id: 'page-1',
+          number: 1,
+          width: 200,
+          height: 200,
+          texts: [text],
+          thumbnail: undefined
+        })
+      )
+
+      await expect(
+        page.render(container, { scale: 1, views: [RenderViews.TEXT] })
+      ).resolves.toBeUndefined()
+
+      const span = container.querySelector('span') as HTMLSpanElement
+      expect(span.style.transform).toBe('rotate(0deg) scale(1, 1)')
+      expect(span.style.left).toBe('10px')
+      expect(span.style.top).toBe('20px')
+    })
+  })
 })
