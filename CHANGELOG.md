@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [UnReleased]
+## [0.6.0] - 2026-05-13
 
 ### Fixed
 - 清理根目录与 `demo/`、`dist/` 中误入仓库的 DiskStation/DownloadConflict 冲突副本，并新增 `*_DownloadConflict*` 忽略规则防止再次提交
