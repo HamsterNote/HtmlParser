@@ -5,10 +5,9 @@ import {
   IntermediateText,
   TextDir
 } from '@hamster-note/types'
-import { Window } from 'happy-dom'
-
 import { HtmlPage, RenderViews } from '../HtmlPage.js'
 import { HtmlParser } from '../index.js'
+import { withDomDocument } from '../testUtils/domTestUtils.js'
 import {
   resetPretextAdapter,
   setPretextAdapter
@@ -17,31 +16,6 @@ import type { PretextAdapter } from '../textMeasurement.js'
 
 const adapter: PretextAdapter = {
   measure: () => ({ width: 50, height: 20 })
-}
-
-const withDomGlobals = async <T>(fn: () => Promise<T>): Promise<T> => {
-  const window = new Window()
-  const globalRef = globalThis as Record<string, unknown>
-  const original = {
-    DOMParser: globalRef.DOMParser,
-    Node: globalRef.Node,
-    document: globalRef.document
-  }
-
-  globalRef.DOMParser = window.DOMParser
-  globalRef.Node = window.Node
-  globalRef.document = window.document
-
-  try {
-    return await fn()
-  } finally {
-    if (original.DOMParser) globalRef.DOMParser = original.DOMParser
-    else delete globalRef.DOMParser
-    if (original.Node) globalRef.Node = original.Node
-    else delete globalRef.Node
-    if (original.document) globalRef.document = original.document
-    else delete globalRef.document
-  }
 }
 
 const buildDocument = (text: IntermediateText): IntermediateDocument => {
@@ -105,8 +79,8 @@ describe('renderer alignment', () => {
       [10, 60]
     ])
 
-    await withDomGlobals(async () => {
-      const container = globalThis.document.createElement(
+    await withDomDocument(async ({ document }) => {
+      const container = document.createElement(
         'div'
       ) as unknown as HTMLDivElement
       const page = new HtmlPage(
@@ -138,8 +112,8 @@ describe('renderer alignment', () => {
       [-18.284271247461902, 48.2842712474619]
     ])
 
-    await withDomGlobals(async () => {
-      const container = globalThis.document.createElement(
+    await withDomDocument(async ({ document }) => {
+      const container = document.createElement(
         'div'
       ) as unknown as HTMLDivElement
       const page = new HtmlPage(
@@ -157,8 +131,8 @@ describe('renderer alignment', () => {
       const span = container.querySelector('span') as HTMLSpanElement
       const domTransform = span.style.transform
 
-      const document = buildDocument(text)
-      const html = await HtmlParser.decodeToHtml(document)
+      const intermediateDocument = buildDocument(text)
+      const html = await HtmlParser.decodeToHtml(intermediateDocument)
       const htmlTransform = html.match(/transform:\s*([^;]+);/)?.[1] ?? ''
 
       expect(domTransform).toBe('rotate(45deg) scale(2, 2)')
@@ -182,8 +156,8 @@ describe('renderer alignment', () => {
       [10, 60]
     ])
 
-    await withDomGlobals(async () => {
-      const container = globalThis.document.createElement(
+    await withDomDocument(async ({ document }) => {
+      const container = document.createElement(
         'div'
       ) as unknown as HTMLDivElement
       const page = new HtmlPage(

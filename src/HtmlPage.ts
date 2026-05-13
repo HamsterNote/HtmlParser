@@ -53,6 +53,11 @@ export class HtmlPage {
   ): Promise<void> {
     const scale = options?.scale ?? 1
     const views = options?.views ?? [RenderViews.TEXT, RenderViews.THUMBNAIL]
+    const ownerDocument = container.ownerDocument ?? globalThis.document
+
+    if (!ownerDocument) {
+      throw new Error('HtmlPage.render requires a document context')
+    }
 
     // 清空容器
     container.innerHTML = ''
@@ -80,7 +85,7 @@ export class HtmlPage {
       const texts = await this.intermediatePage.getTexts()
 
       // 创建文本容器
-      const textContainer = document.createElement('div')
+      const textContainer = ownerDocument.createElement('div')
       textContainer.style.position = 'absolute'
       textContainer.style.top = '0'
       textContainer.style.left = '0'
@@ -89,7 +94,7 @@ export class HtmlPage {
 
       // 渲染所有文本元素
       texts.forEach((text) => {
-        const span = document.createElement('span')
+        const span = ownerDocument.createElement('span')
         span.className = 'hamster-note-text'
         span.id = text.id
         span.textContent = text.content

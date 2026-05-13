@@ -30,6 +30,33 @@ import {
 import { measureTextBaseline } from './textMeasurement.js'
 import { computeTextStyle } from './textStyle.js'
 
+const ELEMENT_NODE = 1
+const TEXT_NODE = 3
+
+type IframeHostDocument = Pick<Document, 'createElement' | 'body' | 'documentElement'>
+
+let iframeHostDocumentOverride: IframeHostDocument | null = null
+
+export const setIframeHostDocument = (
+  documentOverride: IframeHostDocument | null
+): void => {
+  iframeHostDocumentOverride = documentOverride
+}
+
+function resolveIframeHostDocument(): IframeHostDocument | null {
+  if (iframeHostDocumentOverride) return iframeHostDocumentOverride
+
+  if (
+    typeof document === 'undefined' ||
+    typeof document.createElement !== 'function' ||
+    typeof document.body === 'undefined'
+  ) {
+    return null
+  }
+
+  return document
+}
+
 /**
  * 转义文本为安全的 HTML 文本（避免注入）。
  */
@@ -784,7 +811,7 @@ export class HtmlParser extends DocumentParser {
     }
 
     let depth = 0
-    while (cur && cur.nodeType === Node.ELEMENT_NODE) {
+    while (cur && cur.nodeType === ELEMENT_NODE) {
       const el = cur as Element
       const parsed = parseInlineStyle(el)
       devConsoleLog(`[collectAncestorInlineStyle] 第 ${depth} 层祖先`, { tagName: el.tagName, parsed })
@@ -1070,15 +1097,13 @@ export class HtmlParser extends DocumentParser {
     }) => T | Promise<T>
   ): Promise<T> {
     // 验证必需的 DOM API
-    if (
-      typeof document === 'undefined' ||
-      typeof document.createElement !== 'function' ||
-      typeof document.body === 'undefined'
-    ) {
+    const hostDocument = resolveIframeHostDocument()
+
+    if (!hostDocument) {
       throw new Error('HtmlParser.encode requires iframe-capable DOM APIs')
     }
 
-    const iframe = document.createElement('iframe') as HTMLIFrameElement
+    const iframe = hostDocument.createElement('iframe') as HTMLIFrameElement
 
     // 设置视觉隐藏样式（NOT display:none）
     iframe.style.position = 'absolute'
@@ -1094,7 +1119,7 @@ export class HtmlParser extends DocumentParser {
     iframe.setAttribute('sandbox', 'allow-same-origin')
 
     // 追加到 body（fallback 到 html 元素）
-    const parent = document.body || document.documentElement
+    const parent = hostDocument.body || hostDocument.documentElement
     parent.appendChild(iframe)
 
     try {
@@ -1239,7 +1264,7 @@ export class HtmlParser extends DocumentParser {
     }
 
     const walk = (node: Node) => {
-      if (node.nodeType === Node.ELEMENT_NODE) {
+      if (node.nodeType === ELEMENT_NODE) {
         const el = node as Element
         devConsoleLog('[walk] 遇到元素节点', { tagName: el.tagName })
         if (skipTags.has(el.tagName)) {
@@ -1261,7 +1286,7 @@ export class HtmlParser extends DocumentParser {
         if (isBlockElement) flushPendingLine()
         return
       }
-      if (node.nodeType !== Node.TEXT_NODE) return
+      if (node.nodeType !== TEXT_NODE) return
 
       const raw = String(node.textContent || '')
       const content = raw.replace(/\s+/g, ' ').trim()

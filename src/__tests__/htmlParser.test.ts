@@ -5,63 +5,9 @@ import {
   IntermediateText,
   TextDir
 } from '@hamster-note/types'
-import { Window } from 'happy-dom'
 import { HtmlParser } from '../index'
+import { withDomDocument, withGlobalsRemoved } from '../testUtils/domTestUtils.js'
 import { resetPretextAdapter, setPretextAdapter } from '../textMeasurement.js'
-
-async function withDomGlobals<T>(fn: () => Promise<T>): Promise<T> {
-  const window = new Window()
-  const globalRef = globalThis as Record<string, unknown>
-
-  const original: Record<string, unknown> = {}
-  const globalsToExpose = [
-    'window',
-    'document',
-    'DOMParser',
-    'Node',
-    'NodeFilter',
-    'Range',
-    'HTMLElement',
-    'HTMLIFrameElement',
-    'Element',
-    'getComputedStyle',
-    'TextEncoder',
-    'TextDecoder',
-    'DOMRect',
-    'Window'
-  ]
-
-  for (const key of globalsToExpose) {
-    original[key] = globalRef[key]
-  }
-
-  globalRef['window'] = window
-  globalRef['document'] = window.document
-  globalRef['DOMParser'] = window.DOMParser
-  globalRef['Node'] = window.Node
-  globalRef['NodeFilter'] = window.NodeFilter
-  globalRef['Range'] = window.Range
-  globalRef['HTMLElement'] = window.HTMLElement
-  globalRef['HTMLIFrameElement'] = window.HTMLIFrameElement
-  globalRef['Element'] = window.Element
-  globalRef['getComputedStyle'] = window.getComputedStyle
-  globalRef['TextEncoder'] = window.TextEncoder
-  globalRef['TextDecoder'] = window.TextDecoder
-  globalRef['DOMRect'] = window.DOMRect
-  globalRef['Window'] = window.Window
-
-  try {
-    return await fn()
-  } finally {
-    for (const key of globalsToExpose) {
-      if (original[key] !== undefined) {
-        globalRef[key] = original[key]
-      } else {
-        delete globalRef[key]
-      }
-    }
-  }
-}
 
 describe('HtmlParser', () => {
   afterEach(() => {
@@ -69,8 +15,6 @@ describe('HtmlParser', () => {
   })
 
   it('encode 应该在无 DOM 环境下抛出错误', async () => {
-    const globalRef = globalThis as Record<string, unknown>
-    const original: Record<string, unknown> = {}
     const globalsToDelete = [
       'document',
       'window',
@@ -84,30 +28,17 @@ describe('HtmlParser', () => {
       'Window'
     ]
 
-    for (const key of globalsToDelete) {
-      original[key] = globalRef[key]
-      delete globalRef[key]
-    }
-
-    try {
+    await withGlobalsRemoved(globalsToDelete, async () => {
       const html = `<h1>标题</h1><p>第一段</p><p>第二段</p>`
       const buffer = new TextEncoder().encode(html).buffer
       await expect(HtmlParser.encode(buffer)).rejects.toThrow(
         'HtmlParser.encode requires iframe-capable DOM APIs'
       )
-    } finally {
-      for (const key of globalsToDelete) {
-        if (original[key] !== undefined) {
-          globalRef[key] = original[key]
-        } else {
-          delete globalRef[key]
-        }
-      }
-    }
+    })
   })
 
   it('encode 应该识别斜体文本', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       const html = `<p><em>italic</em></p><p><i>italic2</i></p><p><span style="font-style: italic;">italic3</span></p>`
       const buffer = new TextEncoder().encode(html).buffer
       const doc = await HtmlParser.encode(buffer)
@@ -129,7 +60,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode DOM 路径中同一语义行仅最后片段 isEOL 为 true', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       const html = '<p>Hello <strong>World</strong><span> Again</span></p>'
       const buffer = new TextEncoder().encode(html).buffer
       const doc = await HtmlParser.encode(buffer)
@@ -151,7 +82,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode DOM 路径在块边界和 <br> 处结束语义行且每行仅一个 isEOL', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       const html =
         '<div>Alpha<span>Beta</span><br/>Gamma<span>Delta</span></div><p>Epsilon</p>'
       const buffer = new TextEncoder().encode(html).buffer
@@ -189,7 +120,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode DOM 路径在多行输入中合并文本节点且最后片段 isEOL 为 true', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       const html = 'line-1\nline-2\nline-3'
       const buffer = new TextEncoder().encode(html).buffer
       const doc = await HtmlParser.encode(buffer)
@@ -204,7 +135,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode fallback 路径应该使用 pretext 宽度生成 polygon', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       setPretextAdapter({
         measure: (text) => ({
           width: text.length * 8,
@@ -226,7 +157,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode 应该在 pretext 测量失败时回退到启发式宽度', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       setPretextAdapter({
         measure: () => {
           throw new Error('measurement failed')
@@ -247,7 +178,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode 应该使用 pretext 测量文本宽度并生成 polygon', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       setPretextAdapter({
         measure: (text) => ({
           width: text.length * 10,
@@ -270,7 +201,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode 应该在成功编码后清理 iframe', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async ({ document }) => {
       const iframeCountBefore = document.querySelectorAll('iframe').length
       const html = '<p>Hello World</p>'
       const buffer = new TextEncoder().encode(html).buffer
@@ -281,7 +212,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode 应该在测量失败时清理 iframe', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async ({ document }) => {
       setPretextAdapter({
         measure: () => {
           throw new Error('measurement failed')
@@ -297,7 +228,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode 应该在 collectTextsFromDocument 抛出错误时清理 iframe', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async ({ document }) => {
       const parserRef = HtmlParser as unknown as Record<string, unknown>
       const original = parserRef.collectTextsFromDocument as () => { title: string; texts: unknown[]; pageHeight: number }
       parserRef.collectTextsFromDocument = () => {
@@ -317,7 +248,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode 应该通过 iframe DOM 解析嵌套样式 HTML', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       setPretextAdapter({
         measure: (text) => ({
           width: text.length * 10,
@@ -340,7 +271,7 @@ describe('HtmlParser', () => {
   })
 
   it('decodeToHtml 后再 encode 应该保留带引号的 font-family', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       setPretextAdapter({
         measure: (text) => ({
           width: text.length * 10,
@@ -401,7 +332,7 @@ describe('HtmlParser', () => {
   })
 
   it('encode 应该正确解析引号内包含分号和冒号的 font-family', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async () => {
       setPretextAdapter({
         measure: (text) => ({
           width: text.length * 10,
@@ -422,7 +353,7 @@ describe('HtmlParser', () => {
   })
 
   it('collectTextsFromDocument 应该基于 computed style 和 bounding rect 生成中间文本', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async ({ document, DOMRect }) => {
       setPretextAdapter({
         measure: (text) => {
           if (text === 'Hello') return { width: 40, height: 18 }
@@ -557,7 +488,7 @@ describe('HtmlParser', () => {
   })
 
   it('collectTextsFromDocument 应该支持特殊 demo 文本场景', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async ({ document, DOMRect }) => {
       setPretextAdapter({
         measure: (text) => {
           switch (text) {
@@ -826,7 +757,7 @@ describe('HtmlParser', () => {
   })
 
   it('collectTextsFromDocument 应该支持百分比 translate', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async ({ document, DOMRect }) => {
       setPretextAdapter({
         measure: (text) => {
           if (text === 'Translate percent') return { width: 80, height: 20 }
@@ -930,7 +861,7 @@ describe('HtmlParser', () => {
   })
 
   it('collectTextsFromDocument 应该按渲染行切分包裹的拉丁文本', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async ({ document, DOMRect }) => {
       setPretextAdapter({
         measure: (text) => {
           if (text === 'Hello world') return { width: 90, height: 18 }
@@ -1078,7 +1009,7 @@ describe('HtmlParser', () => {
   })
 
   it('collectTextsFromDocument 应该按渲染行切分无空格文本', async () => {
-    await withDomGlobals(async () => {
+    await withDomDocument(async ({ document, DOMRect }) => {
       setPretextAdapter({
         measure: (text) => {
           if (text === '你好世界') return { width: 40, height: 18 }
