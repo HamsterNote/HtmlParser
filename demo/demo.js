@@ -7,8 +7,10 @@ import { renderPreviewHtml, setPreviewMessage } from './demoPreview.js'
 
 const parseButton = document.querySelector('[data-action="parse"]')
 const decodeButton = document.querySelector('[data-action="decode"]')
+const decodeInputButton = document.querySelector('[data-action="decode-input"]')
 const toggleOutputButton = document.querySelector('[data-action="toggle-output"]')
 const output = document.querySelector('[data-role="output"]')
+const jsonInput = document.querySelector('[data-role="json-input"]')
 const status = document.querySelector('[data-role="status"]')
 const preview = document.querySelector('[data-role="preview"]')
 const previewNote = document.querySelector('[data-role="preview-note"]')
@@ -94,9 +96,40 @@ if (parseButton) {
   })
 }
 
+const handleDecodeInput = async () => {
+  if (!jsonInput || !preview) return
+
+  setStatus('Decoding...')
+
+  try {
+    const rawText = jsonInput.value?.trim() ?? ''
+    if (!rawText || !rawText.startsWith('{')) {
+      throw new Error('Please enter valid JSON in the input area above.')
+    }
+    const data = JSON.parse(rawText)
+    const html = await decodeSerializedDocumentToHtml(data)
+    renderPreviewHtml(preview, html)
+    setPreviewNote(
+      'Preview is an approximation based on the IntermediateDocument layout.'
+    )
+    setStatus('Decode ready')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    setPreviewMessage(preview, message, true)
+    setPreviewNote('Preview is unavailable due to decode errors.', true)
+    setStatus('Decode failed')
+  }
+}
+
 if (decodeButton) {
   decodeButton.addEventListener('click', () => {
     void handleDecode()
+  })
+}
+
+if (decodeInputButton) {
+  decodeInputButton.addEventListener('click', () => {
+    void handleDecodeInput()
   })
 }
 

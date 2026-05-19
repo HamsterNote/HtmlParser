@@ -8,6 +8,7 @@ import type { TextStylePayload } from './textStyle.js'
 export type TextCssStyle = Record<string, string>
 
 const cssPxOrPercent = (val: number): string => {
+  if (!Number.isFinite(val)) return '0px'
   if (Math.abs(val) < 1) return `${(val * 100).toFixed(4)}%`
   return `${val}px`
 }

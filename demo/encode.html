@@ -56,12 +56,28 @@
       </section>
 
       <section class="card">
+        <h3>JSON Input</h3>
+        <p class="input-hint">Paste intermediate document JSON here and click "Decode JSON Input" to render preview.</p>
+        <textarea
+          class="json-input"
+          data-role="json-input"
+          placeholder='{"id":"...","title":"...","outline":[],"pages":[...]}'
+          rows="8"
+        ></textarea>
+        <div class="actions">
+          <button type="button" class="button-secondary" data-action="decode-input">
+            Decode JSON Input
+          </button>
+          <span class="status" data-role="status">Idle</span>
+        </div>
+      </section>
+
+      <section class="card">
         <div class="actions">
           <button type="button" data-action="parse">Parse current page</button>
           <button type="button" class="button-secondary" data-action="decode">
             Decode JSON
           </button>
-          <span class="status" data-role="status">Idle</span>
         </div>
         <div class="outputs">
           <div class="output-panel">

@@ -167,6 +167,7 @@ function escapeHtml(text: string): string {
  * - 否则使用像素 px
  */
 function cssPxOrPercent(val: number): string {
+  if (!Number.isFinite(val)) return '0px'
   if (Math.abs(val) < 1) return `${(val * 100).toFixed(4)}%`
   return `${val}px`
 }
