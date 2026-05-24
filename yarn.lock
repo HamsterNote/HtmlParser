@@ -390,10 +390,10 @@
   resolved "https://registry.yarnpkg.com/@hamster-note/document-parser/-/document-parser-0.3.1.tgz#48da7a4f7031b98452de6c0e49a8358726f8295e"
   integrity sha512-1+5A7EYgvvsqN6BJncaHtKOhXOPNn99D9dl4/u82BkjQi6BtBK7DXHXi2rjT3jNeCVPOSg7fWslpS17jOPY0XA==
 
-"@hamster-note/types@^0.7.0":
-  version "0.7.0"
-  resolved "https://registry.yarnpkg.com/@hamster-note/types/-/types-0.7.0.tgz#4bf759f18286bbb6f9836a0ae2fc9c6f340d5655"
-  integrity sha512-BKC0R3kQ0gkHZFIopqygIaQMJogVmxLTolpMbuyr7dMOLYlwRS3/GwRRaMW8quvDUUA76wBnORg4CDAfnlSwAg==
+"@hamster-note/types@0.8.0":
+  version "0.8.0"
+  resolved "https://registry.npmjs.org/@hamster-note/types/-/types-0.8.0.tgz#fb8b318985fcaec28a8665526539a5e2ab84f233"
+  integrity sha512-NNcKdcCchBU4x/gFksXUzFZ1WV37HzBzRk6MEFWhVyHBOk5G7niuXRuP8frPdboQkWVQrRtnZFuvXeniWjphrg==
 
 "@humanfs/core@^0.19.1":
   version "0.19.1"

@@ -12,7 +12,7 @@
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",
     "@hamster-note/document-parser": "0.3.1",
-    "@hamster-note/types": "^0.7.0",
+    "@hamster-note/types": "0.8.0",
     "html2canvas": "^1.4.1"
   },
   "devDependencies": {

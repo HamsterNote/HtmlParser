@@ -1,3 +1,5 @@
+import { IntermediatePage, IntermediateText } from '@hamster-note/types'
+
 function cloneOutlineItem(item) {
   return {
     ...item
@@ -5,9 +7,9 @@ function cloneOutlineItem(item) {
 }
 
 function cloneText(text) {
-  return {
+  return new IntermediateText({
     ...text
-  }
+  })
 }
 
 function clonePage(page) {
@@ -25,12 +27,20 @@ async function resolvePages(intermediate) {
   const pages = await intermediate.pages
   return Promise.all(
     pages.map(async (page) => {
+      const content =
+        Array.isArray(page.content)
+          ? page.content
+          : typeof page.getContent === 'function'
+            ? await page.getContent()
+            : undefined
       const texts =
         Array.isArray(page.texts)
           ? page.texts
-          : typeof page.getTexts === 'function'
-            ? await page.getTexts()
-            : []
+          : Array.isArray(content)
+            ? content.filter((item) => item instanceof IntermediateText)
+            : typeof page.getTexts === 'function'
+              ? await page.getTexts()
+              : []
 
       let thumbnail = page.thumbnail
       if (thumbnail == null && typeof page.getThumbnail === 'function') {
@@ -70,15 +80,20 @@ export function parseSerializedDocument(serialized) {
   const pages = Array.isArray(serialized.pages)
     ? serialized.pages.map((page) => {
         const normalizedPage = clonePage(page)
-        return {
-          ...normalizedPage,
-          async getTexts() {
-            return normalizedPage.texts.map(cloneText)
-          },
-          async getThumbnail() {
-            return normalizedPage.thumbnail
-          }
-        }
+        const content = normalizedPage.texts.map(cloneText)
+        const intermediatePage = new IntermediatePage({
+          id: normalizedPage.id,
+          number: normalizedPage.number,
+          width: normalizedPage.width,
+          height: normalizedPage.height,
+          texts: content,
+          thumbnail: undefined
+        })
+        intermediatePage.setGetContent(async () => content.map(cloneText))
+        intermediatePage.setGetThumbnail(async () => normalizedPage.thumbnail)
+        intermediatePage.texts = normalizedPage.texts
+        intermediatePage.thumbnail = normalizedPage.thumbnail
+        return intermediatePage
       })
     : []
 

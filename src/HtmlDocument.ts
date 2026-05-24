@@ -46,7 +46,7 @@ export class HtmlDocument {
    * 返回第一页的缩略图作为封面
    */
   async getCover(): Promise<HTMLCanvasElement | HTMLImageElement> {
-    const coverUrl = await this.intermediateDocument.getCover()
+    const cover = await this.intermediateDocument.getCover()
 
     // 创建 Image 元素
     const img = new Image()
@@ -74,8 +74,8 @@ export class HtmlDocument {
         resolve(canvas)
       }
 
-      if (coverUrl) {
-        img.src = coverUrl
+      if (cover?.src) {
+        img.src = cover.src
       } else {
         // 触发 onerror 创建空白 canvas
         img.src = ''

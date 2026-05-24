@@ -16,6 +16,7 @@
 import { DocumentParser, type ParserInput } from '@hamster-note/document-parser'
 import {
   IntermediateDocument,
+  IntermediateImage,
   IntermediatePage,
   IntermediatePageMap,
   IntermediateText,
@@ -85,17 +86,17 @@ function buildLazyThumbnailFn(
   texts: IntermediateText[],
   width: number,
   height: number
-): (scale?: number) => Promise<string | undefined> {
-  let cachedDataUrl: string | undefined
+): (scale: number) => Promise<IntermediateImage | undefined> {
+  let cachedThumbnail: IntermediateImage | undefined
   let cachedScale: number | undefined
-  let inFlight: Promise<string | undefined> | null = null
+  let inFlight: Promise<IntermediateImage | undefined> | null = null
   let inFlightScale: number | undefined
 
-  return async (scale?: number): Promise<string | undefined> => {
+  return async (scale: number): Promise<IntermediateImage | undefined> => {
     const effectiveScale = Math.max(scale ?? 0.3, 0.3)
 
-    if (cachedDataUrl && cachedScale !== undefined && cachedScale >= effectiveScale) {
-      return cachedDataUrl
+    if (cachedThumbnail && cachedScale !== undefined && cachedScale >= effectiveScale) {
+      return cachedThumbnail
     }
 
     if (inFlight && inFlightScale !== undefined && inFlightScale >= effectiveScale) {
@@ -103,7 +104,7 @@ function buildLazyThumbnailFn(
     }
 
     const localScale = effectiveScale
-    let localPromise: Promise<string | undefined> = Promise.resolve(undefined)
+    let localPromise: Promise<IntermediateImage | undefined> = Promise.resolve(undefined)
     localPromise = (async () => {
       await Promise.resolve()
       let handle: OffscreenPageHandle | undefined
@@ -125,12 +126,23 @@ function buildLazyThumbnailFn(
           useCORS: true
         })
         const dataUrl = canvas.toDataURL('image/png')
+        const thumbnailImage = new IntermediateImage({
+          id: `${page.id}-thumbnail`,
+          src: dataUrl,
+          polygon: [
+            [0, 0],
+            [width, 0],
+            [width, height],
+            [0, height]
+          ],
+          opacity: 1
+        })
         if (cachedScale === undefined || localScale >= cachedScale) {
-          cachedDataUrl = dataUrl
+          cachedThumbnail = thumbnailImage
           cachedScale = localScale
-          ;(page as unknown as { _thumbnail?: string })._thumbnail = dataUrl
+          ;(page as unknown as { _thumbnail?: IntermediateImage })._thumbnail = thumbnailImage
         }
-        return dataUrl
+        return thumbnailImage
       } catch (err) {
         devConsoleLog('[encode] thumbnail capture failed', err)
         return undefined
@@ -856,9 +868,18 @@ export class HtmlParser extends DocumentParser {
 
   // 复用的页面渲染
   private static async lazyRenderPageDiv(p: IntermediatePage): Promise<string> {
-    const texts = p.texts.map((t) => HtmlParser.renderTextSpan(t)).join('')
+    const pageContent = Array.isArray((p as unknown as { content?: unknown[] }).content)
+      ? (p as unknown as { content: unknown[] }).content
+      : Array.isArray((p as unknown as { texts?: unknown[] }).texts)
+        ? (p as unknown as { texts: unknown[] }).texts
+        : []
+
+    const texts = pageContent
+      .filter((c): c is IntermediateText => c instanceof IntermediateText)
+      .map((t) => HtmlParser.renderTextSpan(t))
+      .join('')
     const thumb = await p.getThumbnail(0.3)
-    const bg = thumb ? `background-image:url('${thumb}');` : ''
+    const bg = thumb?.src ? `background-image:url('${thumb.src}');` : ''
     return `<div class="hamster-note-page" id="${escapeHtml(p.id)}" style="${escapeHtml(`width:${cssPxOrPercent(p.width)};height:${cssPxOrPercent(p.height)};${bg}`)}">${texts}</div>`
   }
 

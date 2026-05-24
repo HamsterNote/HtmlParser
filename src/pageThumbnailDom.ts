@@ -3,7 +3,7 @@ import type { IntermediatePage, IntermediateText } from '@hamster-note/types'
 import { cssStyleRecordToString, formatTextCssStyle } from './textCssStyle.js'
 import { computeTextStyle } from './textStyle.js'
 
-export interface OffscreenPageInput extends Pick<IntermediatePage, 'width' | 'height' | 'texts'> {
+export interface OffscreenPageInput extends Pick<IntermediatePage, 'width' | 'height'> {
   id?: IntermediatePage['id']
   texts: IntermediateText[]
 }
