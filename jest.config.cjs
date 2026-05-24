@@ -3,6 +3,12 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
+  // 禁用 Jest 30 的全局变量清理机制（globalsCleanup: 'soft' 存在已知 bug，
+  // 与 happy-dom 的 HTMLDocument setter 产生 Reflect.set 无限递归）
+  // 参见：https://github.com/jestjs/jest/issues/16044
+  testEnvironmentOptions: {
+    globalsCleanup: 'off'
+  },
   // 将 .ts 文件作为 ESM 处理
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
