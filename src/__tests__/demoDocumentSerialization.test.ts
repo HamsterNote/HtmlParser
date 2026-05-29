@@ -362,4 +362,212 @@ describe('demo document serialization', () => {
     const thumbnail = await page.getThumbnail(0.3)
     expect(thumbnail).toBe('data:image/png;base64,STORED')
   })
+
+  it('forwards textControl to injected decodeToHtml when serialized JSON has top-level textControl', async () => {
+    const serialized = {
+      id: 'tc-doc',
+      title: 'TC Document',
+      outline: [],
+      textControl: { color: '#e11d48', fontSize: 24 },
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'Override me',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 80,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [80, 0], [80, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+
+    expect(receivedArgs).toHaveLength(2)
+    const doc = receivedArgs[0] as Record<string, unknown>
+    expect(doc.id).toBe('tc-doc')
+    const opts = receivedArgs[1] as Record<string, unknown>
+    expect(opts).toEqual({ textControl: { color: '#e11d48', fontSize: 24 } })
+  })
+
+  it('applies textControl overrides in real decode output', async () => {
+    const serialized = {
+      id: 'tc-real-doc',
+      title: 'TC Real Document',
+      outline: [],
+      textControl: { color: '#e11d48', fontSize: 24 },
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'Override me',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 80,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [80, 0], [80, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const html = await decodeSerializedDocumentToHtml(serialized)
+    expect(html).toContain('Override me')
+    expect(html).toContain('color: #e11d48')
+    expect(html).toContain('font-size: 24px')
+  })
+
+  it('passes only document to injected decodeToHtml when textControl is absent', async () => {
+    const serialized = {
+      id: 'no-tc-doc',
+      title: 'No TC Document',
+      outline: [],
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'No override',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 80,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [80, 0], [80, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+
+    expect(receivedArgs).toHaveLength(1)
+    const doc = receivedArgs[0] as Record<string, unknown>
+    expect(doc.id).toBe('no-tc-doc')
+  })
+
+  it('ignores non-object textControl without throwing', async () => {
+    const serialized = {
+      id: 'bad-tc-doc',
+      title: 'Bad TC Document',
+      outline: [],
+      textControl: 'bad',
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'Bad tc',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 80,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [80, 0], [80, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await expect(
+      decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+    ).resolves.toBe('<html>fake</html>')
+
+    expect(receivedArgs).toHaveLength(1)
+    const doc = receivedArgs[0] as Record<string, unknown>
+    expect(doc.id).toBe('bad-tc-doc')
+  })
 })

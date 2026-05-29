@@ -22,8 +22,10 @@ import {
   IntermediateText,
   TextDir
 } from '@hamster-note/types'
+import { applyDecodeTextControl, type DecodeOptions } from './decodeTextControl.js'
 import { devConsoleError, devConsoleLog } from './devLog.js'
 import { HtmlDocument } from './HtmlDocument'
+import { isIntermediateTextLike } from './intermediateTextGuard.js'
 import { buildOffscreenPageElement, type OffscreenPageHandle } from './pageThumbnailDom.js'
 import {
   cssStyleRecordToString,
@@ -867,7 +869,7 @@ export class HtmlParser extends DocumentParser {
   }
 
   // 复用的页面渲染
-  private static async lazyRenderPageDiv(p: IntermediatePage): Promise<string> {
+  private static async lazyRenderPageDiv(p: IntermediatePage, options?: DecodeOptions): Promise<string> {
     const pageContent = Array.isArray((p as unknown as { content?: unknown[] }).content)
       ? (p as unknown as { content: unknown[] }).content
       : Array.isArray((p as unknown as { texts?: unknown[] }).texts)
@@ -875,8 +877,9 @@ export class HtmlParser extends DocumentParser {
         : []
 
     const texts = pageContent
-      .filter((c): c is IntermediateText => c instanceof IntermediateText)
-      .map((t) => HtmlParser.renderTextSpan(t))
+      .filter(isIntermediateTextLike)
+      // 在调用 renderTextSpan 前，将 textControl 覆盖应用到文本对象上
+      .map((t) => HtmlParser.renderTextSpan(applyDecodeTextControl(t, options?.textControl)))
       .join('')
     const thumb = await p.getThumbnail(0.3)
     const bg = thumb?.src ? `background-image:url('${thumb.src}');` : ''
@@ -1616,7 +1619,8 @@ export class HtmlParser extends DocumentParser {
    * 外层包裹一个 .hamster-note-document 容器，内含若干页面与文本元素。
    */
   static async decodeToHtml(
-    intermediateDocument: IntermediateDocument
+    intermediateDocument: IntermediateDocument,
+    options?: DecodeOptions
   ): Promise<string> {
     devConsoleLog('[decodeToHtml] 开始渲染 HTML 片段', { docId: intermediateDocument.id, title: intermediateDocument.title })
     // 片段 CSS：只包含必要的定位/换行/变换等基础样式
@@ -1625,7 +1629,7 @@ export class HtmlParser extends DocumentParser {
     const style = HtmlParser.getFragmentStyle()
 
     const pageHtml = await Promise.all(
-      pages.map((p) => HtmlParser.lazyRenderPageDiv(p))
+      pages.map((p) => HtmlParser.lazyRenderPageDiv(p, options))
     )
 
     const result = `<div class="hamster-note-document"><style>${style}</style>${pageHtml.join('')}</div>`
@@ -1639,10 +1643,11 @@ export class HtmlParser extends DocumentParser {
    * - 优先返回 File（浏览器环境可用），失败时退化到 ArrayBuffer
    */
   static async decode(
-    intermediateDocument: IntermediateDocument
+    intermediateDocument: IntermediateDocument,
+    options?: DecodeOptions
   ): Promise<File | ArrayBuffer> {
     devConsoleLog('[decode] 开始生成完整 HTML 文件', { docId: intermediateDocument.id })
-    const inner = await HtmlParser.decodeToHtml(intermediateDocument)
+    const inner = await HtmlParser.decodeToHtml(intermediateDocument, options)
     const title = intermediateDocument.title || 'document'
     const fullHtml = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>${escapeHtml(
       title
@@ -1662,3 +1667,7 @@ export class HtmlParser extends DocumentParser {
 }
 
 export * from './mock'
+
+// Re-export 类型供 demo 使用（浏览器无法解析裸模块标识符 @hamster-note/types）
+export { IntermediatePage, IntermediateText, type IntermediateDocument } from '@hamster-note/types'
+export { type DecodeTextControl, type DecodeOptions, normalizeDecodeTextControl } from './decodeTextControl.js'

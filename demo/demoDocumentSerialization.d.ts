@@ -51,7 +51,8 @@ export type ParsedSerializedIntermediateDocument = {
 }
 
 export type ParsedSerializedDocumentDecoder = (
-  document: ParsedSerializedIntermediateDocument
+  document: ParsedSerializedIntermediateDocument,
+  options?: { textControl?: Record<string, unknown> }
 ) => Promise<string>
 
 export declare function parseSerializedDocument(

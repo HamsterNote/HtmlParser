@@ -1,4 +1,4 @@
-import { IntermediatePage, IntermediateText } from '@hamster-note/types'
+import { IntermediatePage, IntermediateText, normalizeDecodeTextControl } from '../dist/index.js'
 
 function cloneOutlineItem(item) {
   return {
@@ -117,10 +117,18 @@ async function loadHtmlParser() {
 }
 
 export async function decodeSerializedDocumentToHtml(serialized, decodeToHtml) {
+  const document = parseSerializedDocument(serialized)
+  const textControl = normalizeDecodeTextControl(serialized.textControl)
+  const options = textControl !== undefined ? { textControl } : undefined
+
   if (typeof decodeToHtml === 'function') {
-    return decodeToHtml(parseSerializedDocument(serialized))
+    return options !== undefined
+      ? decodeToHtml(document, options)
+      : decodeToHtml(document)
   }
 
   const { HtmlParser } = await loadHtmlParser()
-  return HtmlParser.decodeToHtml(parseSerializedDocument(serialized))
+  return options !== undefined
+    ? HtmlParser.decodeToHtml(document, options)
+    : HtmlParser.decodeToHtml(document)
 }

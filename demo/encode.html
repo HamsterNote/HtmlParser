@@ -64,6 +64,16 @@
           placeholder='{"id":"...","title":"...","outline":[],"pages":[...]}'
           rows="8"
         ></textarea>
+        <div class="text-control-section">
+          <h4>Text Control <span class="text-control-optional">(optional)</span></h4>
+          <p class="input-hint">Override text styles at decode time. Supported fields: fontSize, lineHeight, fontWeight, italic, color, fontFamily, vertical, dir.</p>
+          <textarea
+            class="json-input json-input-sm"
+            data-role="text-control-input"
+            placeholder='{"fontSize":16,"color":"#333","fontWeight":"bold","fontFamily":"sans-serif"}'
+            rows="4"
+          ></textarea>
+        </div>
         <div class="actions">
           <button type="button" class="button-secondary" data-action="decode-input">
             Decode JSON Input
@@ -109,6 +119,12 @@
       </section>
     </div>
 
+    <!-- vconsole: 仅在开发环境加载，方便移动端调试 -->
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+    <script>
+      // eslint-disable-next-line no-new
+      new window.VConsole()
+    </script>
     <script type="module" src="./demo.js"></script>
   </body>
 </html>

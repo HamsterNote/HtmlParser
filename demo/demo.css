@@ -270,6 +270,28 @@ button:hover {
   box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.1);
 }
 
+.json-input-sm {
+  min-height: 80px;
+}
+
+.text-control-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.text-control-section h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.text-control-optional {
+  font-weight: normal;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
 .input-hint {
   margin: 0 0 12px;
   font-size: 13px;

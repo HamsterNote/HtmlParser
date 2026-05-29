@@ -5,7 +5,7 @@
   "scripts": {
     "build:all": "rolldown --config rolldown.config.ts",
     "prepublishOnly": "yarn build:all",
-    "dev": "http-server -p 8000",
+    "dev": "http-server -p 8169",
     "lint": "echo 'no-lint'",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
   },

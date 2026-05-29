@@ -11,6 +11,7 @@ const decodeInputButton = document.querySelector('[data-action="decode-input"]')
 const toggleOutputButton = document.querySelector('[data-action="toggle-output"]')
 const output = document.querySelector('[data-role="output"]')
 const jsonInput = document.querySelector('[data-role="json-input"]')
+const textControlInput = document.querySelector('[data-role="text-control-input"]')
 const status = document.querySelector('[data-role="status"]')
 const preview = document.querySelector('[data-role="preview"]')
 const previewNote = document.querySelector('[data-role="preview-note"]')
@@ -107,6 +108,16 @@ const handleDecodeInput = async () => {
       throw new Error('Please enter valid JSON in the input area above.')
     }
     const data = JSON.parse(rawText)
+
+    const rawTextControl = textControlInput?.value?.trim() ?? ''
+    if (rawTextControl) {
+      if (!rawTextControl.startsWith('{')) {
+        throw new Error('Text Control JSON must be a valid JSON object.')
+      }
+      const textControl = JSON.parse(rawTextControl)
+      data.textControl = textControl
+    }
+
     const html = await decodeSerializedDocumentToHtml(data)
     renderPreviewHtml(preview, html)
     setPreviewNote(

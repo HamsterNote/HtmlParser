@@ -1,5 +1,6 @@
-import { IntermediatePage, IntermediateText, Number2 } from '@hamster-note/types'
-import { formatTextCssStyle, cssStyleRecordToString } from './textCssStyle.js'
+import type { IntermediatePage, Number2 } from '@hamster-note/types'
+import { isIntermediateTextLike } from './intermediateTextGuard.js'
+import { cssStyleRecordToString, formatTextCssStyle } from './textCssStyle.js'
 import { computeTextStyle } from './textStyle.js'
 
 export enum RenderViews {
@@ -41,7 +42,7 @@ export class HtmlPage {
    */
   getPureText(): string {
     return this.intermediatePage.content
-      .filter((item): item is IntermediateText => item instanceof IntermediateText)
+      .filter(isIntermediateTextLike)
       .map((text) => text.content)
       .join('\n')
   }
@@ -86,9 +87,7 @@ export class HtmlPage {
     if (views.includes(RenderViews.TEXT)) {
       // 获取文本（可能触发懒加载）
       const content = await this.intermediatePage.getContent()
-      const texts = content.filter(
-        (item): item is IntermediateText => item instanceof IntermediateText
-      )
+      const texts = content.filter(isIntermediateTextLike)
 
       // 创建文本容器
       const textContainer = ownerDocument.createElement('div')
