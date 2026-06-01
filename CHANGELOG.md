@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-06-01
+
+### Fixed
+- 修复 `HtmlParser.encode` 在 DOM 解析模式下 `isEOL` 标记不正确的问题，同一段落内的内联文本片段不再被全部标记为行尾
+- 修正行边界语义：仅语义行的最后一个片段标记 `isEOL: true`，同行前序片段标记为 `false`
+- 保持 fallback 纯文本解析路径的换行拆分行为不变，每行继续输出 `isEOL: true`
+- 添加回归测试覆盖同一行内联节点和多语义行场景
+
 ## [0.7.0] - 2026-06-01
 
 ### Added
