@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-06-01
+
+### Added
+- 实现懒加载页面缩略图功能，通过 html2canvas 在 encode 阶段捕获页面预览图
+- 支持 `getCover()` 返回 `IntermediateImage` 类型，提供更灵活的封面获取方式
+- 新增 `excludeTextFromBackground` 选项，支持从背景图中排除文本内容，优化封面渲染
+- 实现 `decodeTextControl` 文本样式覆盖功能，解码时支持自定义文本样式控制
+- demo 页面新增 JSON 输入解码 UI，支持直接输入 JSON 数据进行解码预览
+- 添加 `BackgroundDecodeOptions` 类型定义，规范化背景解码配置
+
+### Fixed
+- 修复缩略图捕获时 scale 参数可能为 0 的问题，添加 clamp 确保 scale > 0
+- 修复 `cssPxOrPercent` 解析 NaN 的边界情况处理
+- 禁用 Jest 30 的 `globalsCleanup` 选项，修复 happy-dom 中 `Reflect.set` 导致的无限递归问题
+
 ## [0.6.0] - 2026-05-13
 
 ### Fixed
