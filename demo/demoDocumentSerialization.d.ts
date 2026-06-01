@@ -50,9 +50,15 @@ export type ParsedSerializedIntermediateDocument = {
   getOutline(): SerializedOutlineItem[]
 }
 
+export type BackgroundDecodeOptions = {
+  includeBackground?: boolean
+  backgroundQuality?: number
+  excludeTextFromBackground?: boolean
+}
+
 export type ParsedSerializedDocumentDecoder = (
   document: ParsedSerializedIntermediateDocument,
-  options?: { textControl?: Record<string, unknown> }
+  options?: { textControl?: Record<string, unknown>; background?: BackgroundDecodeOptions }
 ) => Promise<string>
 
 export declare function parseSerializedDocument(

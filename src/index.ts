@@ -115,7 +115,7 @@ function buildLazyThumbnailFn(
 		scale: number,
 		options?: BackgroundDecodeOptions,
 	): Promise<IntermediateImage | undefined> => {
-		const effectiveScale = Number.isFinite(scale) ? scale : 0.3;
+		const effectiveScale = Number.isFinite(scale) && scale > 0 ? scale : 0.3;
 
 		if (
 			cachedThumbnail &&
