@@ -1,5 +1,6 @@
-import { IntermediatePage, Number2 } from '@hamster-note/types'
-import { formatTextCssStyle, cssStyleRecordToString } from './textCssStyle.js'
+import type { IntermediatePage, Number2 } from '@hamster-note/types'
+import { isIntermediateTextLike } from './intermediateTextGuard.js'
+import { cssStyleRecordToString, formatTextCssStyle } from './textCssStyle.js'
 import { computeTextStyle } from './textStyle.js'
 
 export enum RenderViews {
@@ -40,7 +41,10 @@ export class HtmlPage {
    * 获取纯文本内容
    */
   getPureText(): string {
-    return this.intermediatePage.texts.map((t) => t.content).join('\n')
+    return this.intermediatePage.content
+      .filter(isIntermediateTextLike)
+      .map((text) => text.content)
+      .join('\n')
   }
 
   /**
@@ -71,8 +75,8 @@ export class HtmlPage {
     // 渲染缩略图背景
     if (views.includes(RenderViews.THUMBNAIL)) {
       const thumbnail = await this.intermediatePage.getThumbnail(0.3)
-      if (thumbnail) {
-        container.style.backgroundImage = `url('${thumbnail}')`
+      if (thumbnail?.src) {
+        container.style.backgroundImage = `url('${thumbnail.src}')`
         container.style.backgroundRepeat = 'no-repeat'
         container.style.backgroundPosition = 'top center'
         container.style.backgroundSize = 'contain'
@@ -82,7 +86,8 @@ export class HtmlPage {
     // 渲染文本层
     if (views.includes(RenderViews.TEXT)) {
       // 获取文本（可能触发懒加载）
-      const texts = await this.intermediatePage.getTexts()
+      const content = await this.intermediatePage.getContent()
+      const texts = content.filter(isIntermediateTextLike)
 
       // 创建文本容器
       const textContainer = ownerDocument.createElement('div')

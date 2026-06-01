@@ -3,9 +3,17 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
+  // 禁用 Jest 30 的全局变量清理机制（globalsCleanup: 'soft' 存在已知 bug，
+  // 与 happy-dom 的 HTMLDocument setter 产生 Reflect.set 无限递归）
+  // 参见：https://github.com/jestjs/jest/issues/16044
+  testEnvironmentOptions: {
+    globalsCleanup: 'off'
+  },
   // 将 .ts 文件作为 ESM 处理
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
+    // 重定向 demo 对 dist/index.js 的引用到源码（CI 中 dist/ 在测试前尚未构建）
+    '^\\.\\./dist/index\\.js$': '<rootDir>/src/index.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^src/(.*)$': '<rootDir>/node_modules/@hamster-note/types/src/$1',
@@ -20,7 +28,11 @@ module.exports = {
     '^.+\\.(ts|tsx)$': [
       'ts-jest',
       {
-        tsconfig: 'tsconfig.jest.json',
+        tsconfig: {
+          ...require('./tsconfig.jest.json').compilerOptions,
+          allowJs: true,
+          checkJs: false
+        },
         isolatedModules: false,
         useESM: true
       }
@@ -33,11 +45,46 @@ module.exports = {
         isolatedModules: true,
         useESM: true
       }
+    ],
+    // 转换 node_modules 中 @chenglou 包的 ESM JS 文件
+    'node_modules/@chenglou/.+\\.js$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.jest.json',
+        isolatedModules: true,
+        useESM: true
+      }
+    ],
+    // 转换 node_modules 中 happy-dom 的 ESM JS 文件
+    'node_modules/happy-dom/.+\\.js$': [
+      'ts-jest',
+      {
+        tsconfig: 'tsconfig.jest.json',
+        isolatedModules: true,
+        useESM: true
+      }
+    ],
+    // 转换 demo 目录中的 ESM JS 文件
+    'demo/.+\\.js$': [
+      'ts-jest',
+      {
+        tsconfig: {
+          allowJs: true,
+          checkJs: false,
+          target: 'ES2020',
+          module: 'CommonJS',
+          moduleResolution: 'node',
+          esModuleInterop: true,
+          allowSyntheticDefaultImports: true
+        },
+        isolatedModules: true,
+        useESM: false
+      }
     ]
   },
   collectCoverage: true,
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   // 不忽略 @hamster-note 包，允许 Jest 转换它们
-  transformIgnorePatterns: ['/node_modules/(?!@hamster-note/)']
+  transformIgnorePatterns: ['/node_modules/(?!(@hamster-note|@chenglou|happy-dom)/)']
 }

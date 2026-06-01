@@ -1,14 +1,13 @@
-import type {
-  IntermediateTextPolygon,
-  IntermediateTextPolygonPoint
-} from '@hamster-note/types'
 import { devConsoleLog } from './devLog.js'
 
-type PolygonInput = ReadonlyArray<IntermediateTextPolygonPoint>
+type PolygonPoint = [number, number]
+type Polygon = [PolygonPoint, PolygonPoint, PolygonPoint, PolygonPoint]
+
+type PolygonInput = ReadonlyArray<PolygonPoint>
 
 const distance = (
-  p0: IntermediateTextPolygonPoint,
-  p1: IntermediateTextPolygonPoint
+  p0: PolygonPoint,
+  p1: PolygonPoint
 ): number => {
   const deltaX = p1[0] - p0[0]
   const deltaY = p1[1] - p0[1]
@@ -17,7 +16,7 @@ const distance = (
 
 export function validatePolygon(
   polygon: PolygonInput
-): asserts polygon is IntermediateTextPolygon {
+): asserts polygon is Polygon {
   devConsoleLog('[validatePolygon] 验证 polygon', { pointCount: polygon.length })
   if (polygon.length !== 4) {
     throw new Error(`Polygon must have exactly 4 points, got ${polygon.length}`)
