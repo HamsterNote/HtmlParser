@@ -12,6 +12,8 @@ module.exports = {
   // 将 .ts 文件作为 ESM 处理
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
+    // 重定向 demo 对 dist/index.js 的引用到源码（CI 中 dist/ 在测试前尚未构建）
+    '^\\.\\./dist/index\\.js$': '<rootDir>/src/index.ts',
     '^(\\.{1,2}/.*)\\.js$': '$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^src/(.*)$': '<rootDir>/node_modules/@hamster-note/types/src/$1',

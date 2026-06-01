@@ -8,6 +8,10 @@ export interface OffscreenPageInput extends Pick<IntermediatePage, 'width' | 'he
   texts: IntermediateText[]
 }
 
+export interface BuildOffscreenPageElementOptions {
+  excludeTextFromBackground?: boolean
+}
+
 export interface OffscreenPageHandle {
   element: HTMLElement
   cleanup: () => void
@@ -15,7 +19,8 @@ export interface OffscreenPageHandle {
 
 export function buildOffscreenPageElement(
   page: OffscreenPageInput,
-  ownerDocument?: Document
+  ownerDocument?: Document,
+  options?: BuildOffscreenPageElementOptions
 ): OffscreenPageHandle {
   const doc = ownerDocument ?? globalThis.document
 
@@ -40,19 +45,21 @@ export function buildOffscreenPageElement(
     backgroundSize: 'contain'
   })
 
-  page.texts.forEach((text) => {
-    const span = doc.createElement('span')
-    span.className = 'hamster-note-text'
-    span.id = text.id
-    span.textContent = text.content
+  if (options?.excludeTextFromBackground !== true) {
+    page.texts.forEach((text) => {
+      const span = doc.createElement('span')
+      span.className = 'hamster-note-text'
+      span.id = text.id
+      span.textContent = text.content
 
-    const styleText = cssStyleRecordToString(
-      formatTextCssStyle(computeTextStyle(text))
-    )
-    span.setAttribute('style', styleText)
+      const styleText = cssStyleRecordToString(
+        formatTextCssStyle(computeTextStyle(text))
+      )
+      span.setAttribute('style', styleText)
 
-    wrapper.appendChild(span)
-  })
+      wrapper.appendChild(span)
+    })
+  }
 
   doc.body.appendChild(wrapper)
 

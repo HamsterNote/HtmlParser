@@ -119,16 +119,25 @@ async function loadHtmlParser() {
 export async function decodeSerializedDocumentToHtml(serialized, decodeToHtml) {
   const document = parseSerializedDocument(serialized)
   const textControl = normalizeDecodeTextControl(serialized.textControl)
-  const options = textControl !== undefined ? { textControl } : undefined
+
+  const options = {}
+  if (textControl !== undefined) {
+    options.textControl = textControl
+  }
+  if (serialized.background && typeof serialized.background === 'object') {
+    options.background = serialized.background
+  }
+
+  const hasOptions = Object.keys(options).length > 0
 
   if (typeof decodeToHtml === 'function') {
-    return options !== undefined
+    return hasOptions
       ? decodeToHtml(document, options)
       : decodeToHtml(document)
   }
 
   const { HtmlParser } = await loadHtmlParser()
-  return options !== undefined
+  return hasOptions
     ? HtmlParser.decodeToHtml(document, options)
     : HtmlParser.decodeToHtml(document)
 }

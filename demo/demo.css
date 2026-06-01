@@ -297,3 +297,55 @@ button:hover {
   font-size: 13px;
   color: #6b7280;
 }
+
+.background-options-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.background-options-section h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #1f2328;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.slider-row {
+  margin-bottom: 8px;
+}
+
+.slider-row label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #1f2328;
+}
+
+.slider-row input[type="range"] {
+  flex: 1;
+  max-width: 200px;
+}
+
+.slider-row span {
+  min-width: 30px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: #475569;
+}

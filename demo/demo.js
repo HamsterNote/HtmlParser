@@ -77,6 +77,24 @@ const handleDecode = async () => {
       throw new Error('JSON output is not available. Run "Parse current page".')
     }
     const data = JSON.parse(rawText)
+
+    const bgIncludeCheckbox = document.querySelector('[data-role="bg-include"]')
+    const bgQualitySlider = document.querySelector('[data-role="bg-quality"]')
+    const bgExcludeTextCheckbox = document.querySelector('[data-role="bg-exclude-text"]')
+
+    const includeBackground = bgIncludeCheckbox?.checked ?? true
+    const backgroundQuality = parseFloat(bgQualitySlider?.value ?? '0.3')
+    const excludeTextFromBackground = bgExcludeTextCheckbox?.checked ?? false
+
+    const hasCustomBg = !includeBackground || backgroundQuality !== 0.3 || excludeTextFromBackground
+    if (hasCustomBg) {
+      data.background = {
+        includeBackground,
+        backgroundQuality,
+        excludeTextFromBackground
+      }
+    }
+
     const html = await decodeSerializedDocumentToHtml(data)
     renderPreviewHtml(preview, html)
     setPreviewNote(
@@ -118,6 +136,23 @@ const handleDecodeInput = async () => {
       data.textControl = textControl
     }
 
+    const bgIncludeCheckbox = document.querySelector('[data-role="bg-include"]')
+    const bgQualitySlider = document.querySelector('[data-role="bg-quality"]')
+    const bgExcludeTextCheckbox = document.querySelector('[data-role="bg-exclude-text"]')
+
+    const includeBackground = bgIncludeCheckbox?.checked ?? true
+    const backgroundQuality = parseFloat(bgQualitySlider?.value ?? '0.3')
+    const excludeTextFromBackground = bgExcludeTextCheckbox?.checked ?? false
+
+    const hasCustomBg = !includeBackground || backgroundQuality !== 0.3 || excludeTextFromBackground
+    if (hasCustomBg) {
+      data.background = {
+        includeBackground,
+        backgroundQuality,
+        excludeTextFromBackground
+      }
+    }
+
     const html = await decodeSerializedDocumentToHtml(data)
     renderPreviewHtml(preview, html)
     setPreviewNote(
@@ -148,5 +183,13 @@ if (toggleOutputButton) {
   toggleOutputButton.addEventListener('click', () => {
     const isCollapsed = output?.classList.contains('is-collapsed') ?? false
     setOutputCollapsed(!isCollapsed)
+  })
+}
+
+const bgQualitySlider = document.querySelector('[data-role="bg-quality"]')
+const bgQualityValue = document.querySelector('[data-role="bg-quality-value"]')
+if (bgQualitySlider && bgQualityValue) {
+  bgQualitySlider.addEventListener('input', () => {
+    bgQualityValue.textContent = bgQualitySlider.value
   })
 }

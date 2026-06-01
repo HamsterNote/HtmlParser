@@ -18,9 +18,20 @@ export type DecodeTextControl = Partial<
   >
 >
 
-/** 解码选项，包含可选的文本控制覆盖 */
+/** 背景图解码选项 */
+export type BackgroundDecodeOptions = {
+  /** 是否输出背景图，默认 true */
+  includeBackground?: boolean
+  /** 背景图质量（0-1），默认 0.3 */
+  backgroundQuality?: number
+  /** 是否从背景图中排除生成的文本，默认 false */
+  excludeTextFromBackground?: boolean
+}
+
+/** 解码选项 */
 export type DecodeOptions = {
   textControl?: DecodeTextControl
+  background?: BackgroundDecodeOptions
 }
 
 /**
