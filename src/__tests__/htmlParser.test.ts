@@ -508,6 +508,8 @@ describe('HtmlParser', () => {
             fontWeight: number
             italic: boolean
             polygon: number[][]
+            ascent: number
+            descent: number
             isEOL: boolean
           }>
           pageWidth: number
@@ -522,6 +524,8 @@ describe('HtmlParser', () => {
         expect(result.texts[1]?.polygon).toEqual([[45, 0], [95, 0], [95, 18], [45, 18]])
         expect(result.texts[0]?.fontSize).toBe(16)
         expect(result.texts[1]?.fontSize).toBe(20)
+        expect(result.texts.map((text) => text.ascent)).toEqual([13, 16])
+        expect(result.texts.map((text) => text.descent)).toEqual([5, 4])
         expect(result.texts[1]?.fontWeight).toBe(700)
         expect(result.texts[1]?.italic).toBe(true)
         expect(result.texts.map((text) => text.isEOL)).toEqual([false, true])

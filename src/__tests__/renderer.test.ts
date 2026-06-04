@@ -396,6 +396,47 @@ describe("decodeToHtml textControl overrides", () => {
 		expect(fullHtml).toContain("font-weight: 700");
 	});
 
+	it("static decode does not vertically shrink text with signed negative descent", async () => {
+		setPretextAdapter({
+			measure: () => ({ width: 100, height: 18 }),
+		});
+		const signedMetricHeight = 14 * (0.89 - 0.21);
+		const text = new IntermediateText({
+			id: "text-negative-descent",
+			content: "English metric",
+			fontSize: 14,
+			fontFamily: "Inter",
+			fontWeight: 400,
+			italic: false,
+			color: "#000000",
+			polygon: [
+				[10, 20],
+				[110, 20],
+				[110, 20 + signedMetricHeight],
+				[10, 20 + signedMetricHeight],
+			],
+			lineHeight: 18,
+			ascent: 0.89,
+			descent: -0.21,
+			vertical: false,
+			dir: TextDir.LTR,
+			skew: 0,
+			isEOL: true,
+		});
+
+		try {
+			const result = await HtmlParser.decode(buildDocument(text));
+			const fullHtml =
+				result instanceof File
+					? await result.text()
+					: new TextDecoder().decode(result as ArrayBuffer);
+
+			expect(fullHtml).toContain("transform: rotate(0deg) scale(1, 1)");
+		} finally {
+			resetPretextAdapter();
+		}
+	});
+
 	it("does not mutate source text/page/document after decode with overrides", async () => {
 		const { doc, textA, textB } = buildTwoPageDocument();
 

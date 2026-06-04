@@ -1,11 +1,11 @@
-import { TextDir, type IntermediateText } from '@hamster-note/types'
+import { type IntermediateText, TextDir } from '@hamster-note/types'
 
-import { computeTextStyle } from '../textStyle.js'
 import {
+  type PretextAdapter,
   resetPretextAdapter,
-  setPretextAdapter,
-  type PretextAdapter
+  setPretextAdapter
 } from '../textMeasurement.js'
+import { computeTextStyle } from '../textStyle.js'
 
 describe('textStyle - combined geometry and measurement', () => {
   const adapter: PretextAdapter = {
@@ -75,5 +75,35 @@ describe('textStyle - combined geometry and measurement', () => {
     expect(style.top).toBe(48)
     expect(style.transform).toContain('rotate(')
     expect(style.transform).toContain('scale(')
+  })
+
+  it('does not vertically shrink text when negative descent was included as a signed value', () => {
+    setPretextAdapter({
+      measure: () => ({ width: 100, height: 18 })
+    })
+
+    const signedMetricHeight = 14 * (0.89 - 0.21)
+    const text = {
+      id: 'text-negative-descent',
+      content: 'English metric',
+      fontSize: 14,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      italic: false,
+      color: '#000000',
+      polygon: [[10, 20], [110, 20], [110, 20 + signedMetricHeight], [10, 20 + signedMetricHeight]],
+      lineHeight: 18,
+      ascent: 0.89,
+      descent: -0.21,
+      vertical: false,
+      dir: TextDir.LTR,
+      skew: 0,
+      isEOL: true
+    } as IntermediateText
+
+    const style = computeTextStyle(text)
+
+    expect(style.scaleY).toBe(1)
+    expect(style.transform).toBe('rotate(0deg) scale(1, 1)')
   })
 })

@@ -1,4 +1,4 @@
-import { TextDir, type IntermediateText } from '@hamster-note/types'
+import { type IntermediateText, TextDir } from '@hamster-note/types'
 
 import { devConsoleLog } from './devLog.js'
 import {
@@ -30,6 +30,45 @@ export type TextStylePayload = {
   writingMode: 'horizontal-tb' | 'vertical-rl'
 }
 
+const METRIC_HEIGHT_TOLERANCE = 1
+const NORMALIZED_METRIC_LIMIT = 2
+
+const resolveMetricValue = (value: number, fontSize: number): number | null => {
+  const absoluteValue = Math.abs(value)
+  if (!Number.isFinite(absoluteValue) || absoluteValue <= 0) return null
+
+  // ascent/descent may arrive as normalized font metrics such as 0.89 / -0.21.
+  return absoluteValue <= NORMALIZED_METRIC_LIMIT
+    ? absoluteValue * fontSize
+    : absoluteValue
+}
+
+const getNaturalMetricHeights = (text: IntermediateText): number[] => {
+  const ascent = resolveMetricValue(text.ascent, text.fontSize)
+  const descent = resolveMetricValue(text.descent, text.fontSize)
+  if (ascent === null || descent === null) return []
+
+  const unsignedHeight = ascent + descent
+  const heights = [unsignedHeight]
+
+  if (text.descent < 0) {
+    // Some upstream polygon heights are built from ascent + descent before
+    // taking abs(descent), so recognize that signed natural height too.
+    heights.push(Math.abs(ascent - descent))
+  }
+
+  return heights
+}
+
+const isNaturalMetricHeight = (
+  text: IntermediateText,
+  targetHeight: number
+): boolean => {
+  return getNaturalMetricHeights(text).some(
+    (height) => Math.abs(targetHeight - height) <= METRIC_HEIGHT_TOLERANCE
+  )
+}
+
 const shouldApplyInferredScale = (
   text: IntermediateText,
   rotationDeg: number,
@@ -38,6 +77,8 @@ const shouldApplyInferredScale = (
   targetHeight: number
 ): boolean => {
   if (text.vertical || text.dir === TextDir.TTB) return false
+
+  if (isNaturalMetricHeight(text, targetHeight)) return false
 
   const hasMeaningfulVerticalScale = Math.abs(scaleY - 1) > 0.08
   if (hasMeaningfulVerticalScale) return true
