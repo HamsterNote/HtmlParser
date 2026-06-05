@@ -32,7 +32,7 @@ import {
 } from "./decodeTextControl.js";
 import { devConsoleError, devConsoleLog } from "./devLog.js";
 import { HtmlDocument } from "./HtmlDocument";
-import { isIntermediateTextLike } from "./intermediateTextGuard.js";
+import { isIntermediateTextLike, isIntermediateImageLike } from "./intermediateTextGuard.js";
 import {
 	buildOffscreenPageElement,
 	type OffscreenPageHandle,
@@ -100,6 +100,8 @@ export const __getHtml2CanvasLoader = (): Html2CanvasLoader =>
 function buildLazyThumbnailFn(
 	page: IntermediatePage,
 	texts: IntermediateText[],
+	/** encode 阶段无图片，传空数组 */
+	images: IntermediateImage[],
 	width: number,
 	height: number,
 ): (
@@ -141,6 +143,7 @@ function buildLazyThumbnailFn(
 				const thumbnailImage = await captureThumbnail(
 					page,
 					texts,
+					images,
 					width,
 					height,
 					localScale,
@@ -173,6 +176,8 @@ function buildLazyThumbnailFn(
 async function captureThumbnail(
 	page: IntermediatePage,
 	texts: IntermediateText[],
+	/** 页面中的图片对象，即使排除文本时也会传入渲染 */
+	images: IntermediateImage[],
 	width: number,
 	height: number,
 	scale: number,
@@ -189,7 +194,7 @@ async function captureThumbnail(
 		}
 
 		handle = buildOffscreenPageElement(
-			{ id: page.id, width, height, texts },
+			{ id: page.id, width, height, texts, images },
 			doc,
 			{ excludeTextFromBackground: options?.excludeTextFromBackground },
 		);
@@ -972,6 +977,9 @@ export class HtmlParser extends DocumentParser {
 
 		const thumbnailTexts = pageContent.filter(isIntermediateTextLike);
 
+		// 提取页面中的图片对象，即使排除文本时也会传给 captureThumbnail
+		const thumbnailImages = pageContent.filter(isIntermediateImageLike);
+
 		const texts = thumbnailTexts
 			// 在调用 renderTextSpan 前，将 textControl 覆盖应用到文本对象上
 			.map((t) =>
@@ -997,6 +1005,7 @@ export class HtmlParser extends DocumentParser {
 				? await captureThumbnail(
 						p,
 						thumbnailTexts,
+						thumbnailImages,
 						p.width,
 						p.height,
 						quality,
@@ -1824,7 +1833,7 @@ export class HtmlParser extends DocumentParser {
 						thumbnail: undefined,
 					});
 					page.setGetThumbnail(
-						buildLazyThumbnailFn(page, texts, pageWidth, pageHeight),
+						buildLazyThumbnailFn(page, texts, [], pageWidth, pageHeight),
 					);
 					return page;
 				},

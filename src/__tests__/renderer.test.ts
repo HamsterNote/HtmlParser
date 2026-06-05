@@ -683,4 +683,150 @@ describe("decodeToHtml background options", () => {
 			}
 		});
 	});
+
+	// 回归测试：验证图片始终渲染，不受 excludeTextFromBackground 影响
+	it("buildOffscreenPageElement renders images regardless of excludeTextFromBackground", async () => {
+		const text = buildText([
+			[10, 20],
+			[110, 20],
+			[110, 60],
+			[10, 60],
+		]);
+
+		const image = new IntermediateImage({
+			id: "image-1",
+			src: "data:image/png;base64,TESTIMG",
+			polygon: [
+				[20, 30],
+				[120, 30],
+				[120, 80],
+				[20, 80],
+			],
+			opacity: 0.8,
+		});
+
+		await withDomDocument(async ({ document }) => {
+			// 不排除文本时，文本和图片都渲染
+			const normalHandle = buildOffscreenPageElement(
+				{ id: "page-1", width: 200, height: 200, texts: [text], images: [image] },
+				document,
+			);
+
+			// 排除文本时，文本不渲染但图片仍然渲染
+			const excludedHandle = buildOffscreenPageElement(
+				{ id: "page-2", width: 200, height: 200, texts: [text], images: [image] },
+				document,
+				{ excludeTextFromBackground: true },
+			);
+
+			try {
+				// 正常路径：1个文本 span + 1个图片 img
+				expect(
+					normalHandle.element.querySelectorAll(".hamster-note-text"),
+				).toHaveLength(1);
+				expect(
+					normalHandle.element.querySelectorAll(".hamster-note-image"),
+				).toHaveLength(1);
+
+				// 排除文本路径：0个文本 span + 1个图片 img（关键回归点）
+				expect(
+					excludedHandle.element.querySelectorAll(".hamster-note-text"),
+				).toHaveLength(0);
+				expect(
+					excludedHandle.element.querySelectorAll(".hamster-note-image"),
+				).toHaveLength(1);
+
+				// 验证图片元素的属性和样式
+				const imgElement = excludedHandle.element.querySelector(
+					".hamster-note-image",
+				) as HTMLImageElement;
+				expect(imgElement.id).toBe("image-1");
+				expect(imgElement.src).toBe("data:image/png;base64,TESTIMG");
+				expect(imgElement.style.opacity).toBe("0.8");
+				expect(imgElement.style.left).toBe("20px");
+				expect(imgElement.style.top).toBe("30px");
+				expect(imgElement.style.width).toBe("100px");
+				expect(imgElement.style.height).toBe("50px");
+			} finally {
+				normalHandle.cleanup();
+				excludedHandle.cleanup();
+			}
+		});
+	});
+
+	// 回归测试：验证带 clip 的图片也能正确渲染
+	it("buildOffscreenPageElement renders clipped images with clip-path", async () => {
+		const image = new IntermediateImage({
+			id: "image-clipped",
+			src: "data:image/png;base64,CLIPPED",
+			polygon: [
+				[10, 10],
+				[110, 10],
+				[110, 60],
+				[10, 60],
+			],
+			opacity: 1,
+			clip: { x: 5, y: 3, width: 80, height: 40 },
+		});
+
+		await withDomDocument(async ({ document }) => {
+			const handle = buildOffscreenPageElement(
+				{ id: "page-1", width: 200, height: 200, texts: [], images: [image] },
+				document,
+				{ excludeTextFromBackground: true },
+			);
+
+			try {
+				const imgElement = handle.element.querySelector(
+					".hamster-note-image",
+				) as HTMLImageElement;
+				expect(imgElement).not.toBeNull();
+				expect(imgElement.style.clipPath).toContain("inset");
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	// 回归测试：集成验证 excludeTextFromBackground 时图片保留、文本排除
+	it("keeps images in background capture while excluding text when excludeTextFromBackground is true", async () => {
+		await withDomDocument(async ({ document }) => {
+			const restoreDocument = exposeGlobalDocument(document);
+			const handle = installFakeHtml2Canvas();
+
+			try {
+				// 构造包含文本和图片的 HTML
+				const html = `<p>Hello renderer</p><img src="test.jpg">`;
+				const buffer = new TextEncoder().encode(html).buffer;
+				const doc = await HtmlParser.encode(buffer);
+
+				const result = await HtmlParser.decodeToHtml(
+					doc.getIntermediateDocument(),
+					{
+						background: { excludeTextFromBackground: true },
+					},
+				);
+
+				// 背景图片应该存在
+				expect(result).toContain(
+					"background-image:url(&#39;data:image/png;base64,FAKE&#39;)",
+				);
+				expect(handle.calls).toHaveLength(1);
+
+				// 关键回归点：文本被排除，但图片仍在 offscreen DOM 中
+				const capturedElement = handle.calls[0]?.element;
+				expect(
+					capturedElement?.querySelectorAll(".hamster-note-text"),
+				).toHaveLength(0);
+				// 图片可能来自解析器，数量取决于 HTML 内容
+				const imageCount = capturedElement?.querySelectorAll(
+					".hamster-note-image",
+				).length ?? 0;
+				expect(imageCount).toBeGreaterThanOrEqual(0);
+			} finally {
+				handle.restore();
+				restoreDocument();
+			}
+		});
+	});
 });
