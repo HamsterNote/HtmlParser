@@ -1288,6 +1288,102 @@ export class HtmlParser extends DocumentParser {
 		return segments;
 	}
 
+	/**
+	 * 从 Document 中收集所有 <img> 元素，转换为 IntermediateImage 对象。
+	 * 对于非 data URL 的图片，使用 canvas 转换为 data URL 以确保在 srcdoc 上下文中可用。
+	 */
+	private static async collectImagesFromDocument(
+		doc: Document,
+		id: string,
+	): Promise<IntermediateImage[]> {
+		const images: IntermediateImage[] = [];
+		const imgElements = doc.querySelectorAll("img");
+		const bodyRect = doc.body.getBoundingClientRect();
+		const originX = Number.isFinite(bodyRect.left) ? bodyRect.left : 0;
+		const originY = Number.isFinite(bodyRect.top) ? bodyRect.top : 0;
+
+		for (let i = 0; i < imgElements.length; i++) {
+			const img = imgElements[i];
+			const src = img.getAttribute("src") || "";
+			if (!src) continue;
+
+			const rect = img.getBoundingClientRect();
+			if (!rect || rect.width === 0 || rect.height === 0) continue;
+
+			const left = rect.left - originX;
+			const top = rect.top - originY;
+			const right = left + rect.width;
+			const bottom = top + rect.height;
+			const polygon: [[number, number], [number, number], [number, number], [number, number]] = [
+				[left, top],
+				[right, top],
+				[right, bottom],
+				[left, bottom],
+			];
+
+			let dataUrl = src;
+			if (!src.startsWith("data:")) {
+				try {
+					dataUrl = await HtmlParser.imageToDataUrl(img);
+				} catch (e) {
+					devConsoleLog("[collectImagesFromDocument] 图片转换失败，跳过", {
+						src: src.slice(0, 100),
+						error: e,
+					});
+					continue;
+				}
+			}
+
+			images.push(
+				new IntermediateImage({
+					id: `${id}-page-1-image-${i}`,
+					src: dataUrl,
+					polygon,
+					opacity: 1,
+				}),
+			);
+		}
+
+		devConsoleLog("[collectImagesFromDocument] 图片收集完成", {
+			count: images.length,
+		});
+		return images;
+	}
+
+	private static imageToDataUrl(img: HTMLImageElement): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d");
+			if (!ctx) {
+				reject(new Error("无法创建 canvas context"));
+				return;
+			}
+
+			const onLoad = () => {
+				canvas.width = img.naturalWidth || img.width;
+				canvas.height = img.naturalHeight || img.height;
+				ctx.drawImage(img, 0, 0);
+				try {
+					const dataUrl = canvas.toDataURL("image/png");
+					resolve(dataUrl);
+				} catch (e) {
+					reject(e);
+				}
+			};
+
+			if (img.complete) {
+				onLoad();
+			} else {
+				img.addEventListener("load", onLoad, { once: true });
+				img.addEventListener(
+					"error",
+					() => reject(new Error("图片加载失败")),
+					{ once: true },
+				);
+			}
+		});
+	}
+
 	private static buildRenderedTexts(
 		doc: Document,
 		id: string,
@@ -1656,15 +1752,16 @@ export class HtmlParser extends DocumentParser {
 		return { title, texts, pageHeight };
 	}
 
-	private static collectTextsFromDocument(
+	private static async collectTextsFromDocument(
 		doc: Document,
 		id: string,
-	): {
+	): Promise<{
 		title: string;
 		texts: IntermediateText[];
+		images: IntermediateImage[];
 		pageWidth: number;
 		pageHeight: number;
-	} {
+	}> {
 		devConsoleLog("[collectTextsFromDocument] 开始解析 Document", { id });
 		const title = doc.title || "Untitled HTML";
 
@@ -1673,21 +1770,25 @@ export class HtmlParser extends DocumentParser {
 		doc.body.style.padding = "0";
 
 		const renderedSegments = HtmlParser.collectRenderedTextSegments(doc);
+		const images = await HtmlParser.collectImagesFromDocument(doc, id);
+
 		if (renderedSegments.length > 0) {
 			const rendered = HtmlParser.buildRenderedTexts(doc, id, renderedSegments);
 			devConsoleLog("[collectTextsFromDocument] 使用真实 DOM 布局采集完成", {
 				title,
 				textCount: rendered.texts.length,
+				imageCount: images.length,
 				pageWidth: rendered.pageWidth,
 				pageHeight: rendered.pageHeight,
 			});
-			return { title, ...rendered };
+			return { title, ...rendered, images };
 		}
 
 		const fallback = HtmlParser.collectTextsFromDocumentFallback(doc, id);
 		return {
 			title,
 			texts: fallback.texts,
+			images,
 			pageWidth: 800,
 			pageHeight: fallback.pageHeight,
 		};
@@ -1785,7 +1886,6 @@ export class HtmlParser extends DocumentParser {
 			byteLength: buffer.byteLength,
 		});
 
-		// 1) 解码为字符串；失败则抛出异常
 		const html = HtmlParser.decodeBufferToString(buffer);
 		if (html == null) {
 			devConsoleError("[encode] 无法将输入解码为 HTML 文本");
@@ -1796,10 +1896,10 @@ export class HtmlParser extends DocumentParser {
 		const id = `html-${Date.now()}`;
 		let title = "Untitled HTML";
 		let texts: IntermediateText[] = [];
+		let images: IntermediateImage[] = [];
 		let pageWidth = 800;
 		let pageHeight = 0;
 
-		// 2) 通过 iframe 文档解析 HTML，并收集文本节点
 		const result = await HtmlParser.withIframeDocument(
 			html,
 			async ({ iframeDocument }) => {
@@ -1808,32 +1908,34 @@ export class HtmlParser extends DocumentParser {
 		);
 		title = result.title || title;
 		texts = result.texts;
+		images = result.images;
 		pageWidth = result.pageWidth;
 		pageHeight = result.pageHeight;
 		devConsoleLog("[encode] iframe DOM 解析完成", {
 			title,
 			textCount: texts.length,
+			imageCount: images.length,
 			pageWidth,
 			pageHeight,
 		});
 
-		// 3) 构建单页文档的惰性 page 列表
 		const infoList = [
 			{
 				id: `${id}-page-1`,
 				pageNumber: 1,
 				size: { x: pageWidth, y: pageHeight },
 				getData: async () => {
+					const content = [...texts, ...images];
 					const page = new IntermediatePage({
 						id: `${id}-page-1`,
 						number: 1,
 						width: pageWidth,
 						height: pageHeight,
-						texts,
+						content,
 						thumbnail: undefined,
 					});
 					page.setGetThumbnail(
-						buildLazyThumbnailFn(page, texts, [], pageWidth, pageHeight),
+						buildLazyThumbnailFn(page, texts, images, pageWidth, pageHeight),
 					);
 					return page;
 				},
@@ -1846,7 +1948,6 @@ export class HtmlParser extends DocumentParser {
 			pagesMap,
 		});
 
-		// 4) 返回 HtmlDocument 包装
 		const htmlDoc = new HtmlDocument(intermediateDocument);
 		devConsoleLog("[encode] 编码完成，返回 HtmlDocument", {
 			id,
@@ -1921,6 +2022,7 @@ export class HtmlParser extends DocumentParser {
 // Re-export 类型供 demo 使用（浏览器无法解析裸模块标识符 @hamster-note/types）
 export {
 	type IntermediateDocument,
+	IntermediateImage,
 	IntermediatePage,
 	IntermediateText,
 } from "@hamster-note/types";

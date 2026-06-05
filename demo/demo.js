@@ -48,7 +48,12 @@ const handleParse = async () => {
 
   try {
     const html = document.documentElement.outerHTML
-    const buffer = new TextEncoder().encode(html).buffer
+    // 添加 <base> 标签以确保 srcdoc 中的相对 URL 能正确解析
+    const baseTag = `<base href="${document.baseURI}">`
+    const htmlWithBase = html.includes('<head>')
+      ? html.replace('<head>', `<head>${baseTag}`)
+      : `${baseTag}${html}`
+    const buffer = new TextEncoder().encode(htmlWithBase).buffer
     const doc = await HtmlParser.encode(buffer)
     const intermediate = doc.getIntermediateDocument()
     const serialized = await serializeIntermediate(intermediate)

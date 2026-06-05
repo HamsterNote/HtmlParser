@@ -121,6 +121,16 @@ nav a[data-active='true'] {
   height: 120px;
 }
 
+.sample-image {
+  margin-top: 16px;
+}
+
+.sample-image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
 .actions {
   display: flex;
   align-items: center;

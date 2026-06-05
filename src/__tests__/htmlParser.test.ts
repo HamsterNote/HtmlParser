@@ -497,10 +497,10 @@ describe('HtmlParser', () => {
           } as CSSStyleDeclaration
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           title: string
           texts: Array<{
             content: string
@@ -514,7 +514,7 @@ describe('HtmlParser', () => {
           }>
           pageWidth: number
           pageHeight: number
-        })(testDocument, 'doc-1')
+        }>)(testDocument, 'doc-1')
 
         expect(result.title).toBe('Rendered Layout')
         expect(result.pageWidth).toBe(640)
@@ -731,17 +731,17 @@ describe('HtmlParser', () => {
           } as CSSStyleDeclaration
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           texts: Array<{
             content: string
             polygon: number[][]
             vertical: boolean
             isEOL: boolean
           }>
-        })(testDocument, 'special-demo')
+        }>)(testDocument, 'special-demo')
 
         expect(result.texts.map((text) => text.content)).toEqual([
           'First line',
@@ -886,12 +886,12 @@ describe('HtmlParser', () => {
           return originalGetComputedStyle(element)
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           texts: Array<{ content: string; polygon: number[][] }>
-        })(testDocument, 'percent-translate')
+        }>)(testDocument, 'percent-translate')
 
         expect(textNode.textContent).toBe('Translate percent')
         expect(result.texts).toHaveLength(1)
@@ -1027,12 +1027,12 @@ describe('HtmlParser', () => {
           return originalGetComputedStyle(element)
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           texts: Array<{ content: string; polygon: number[][] }>
-        })(testDocument, 'wrapped-latin')
+        }>)(testDocument, 'wrapped-latin')
 
         expect(result.texts.map((text) => text.content)).toEqual([
           'Hello world',
@@ -1175,12 +1175,12 @@ describe('HtmlParser', () => {
           return originalGetComputedStyle(element)
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           texts: Array<{ content: string; polygon: number[][] }>
-        })(testDocument, 'wrapped-cjk')
+        }>)(testDocument, 'wrapped-cjk')
 
         expect(result.texts.map((text) => text.content)).toEqual([
           '你好世界',

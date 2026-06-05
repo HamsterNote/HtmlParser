@@ -1,4 +1,4 @@
-import { IntermediatePage, IntermediateText, normalizeDecodeTextControl } from '../dist/index.js'
+import { IntermediatePage, IntermediateText, IntermediateImage, normalizeDecodeTextControl } from '../dist/index.js'
 
 function cloneOutlineItem(item) {
   return {
@@ -12,6 +12,12 @@ function cloneText(text) {
   })
 }
 
+function cloneImage(image) {
+  return new IntermediateImage({
+    ...image
+  })
+}
+
 function clonePage(page) {
   return {
     id: page.id,
@@ -19,6 +25,7 @@ function clonePage(page) {
     width: page.width,
     height: page.height,
     texts: page.texts.map(cloneText),
+    images: (page.images ?? []).map(cloneImage),
     thumbnail: page.thumbnail ?? undefined
   }
 }
@@ -41,6 +48,10 @@ async function resolvePages(intermediate) {
             : typeof page.getTexts === 'function'
               ? await page.getTexts()
               : []
+      const images =
+        Array.isArray(content)
+          ? content.filter((item) => item instanceof IntermediateImage)
+          : []
 
       let thumbnail = page.thumbnail
       if (thumbnail == null && typeof page.getThumbnail === 'function') {
@@ -53,6 +64,7 @@ async function resolvePages(intermediate) {
         width: page.width,
         height: page.height,
         texts,
+        images,
         thumbnail
       })
     })
@@ -80,19 +92,21 @@ export function parseSerializedDocument(serialized) {
   const pages = Array.isArray(serialized.pages)
     ? serialized.pages.map((page) => {
         const normalizedPage = clonePage(page)
-        const content = normalizedPage.texts.map(cloneText)
+        const texts = normalizedPage.texts.map(cloneText)
+        const images = normalizedPage.images.map(cloneImage)
+        const content = [...texts, ...images]
         const intermediatePage = new IntermediatePage({
           id: normalizedPage.id,
           number: normalizedPage.number,
           width: normalizedPage.width,
           height: normalizedPage.height,
-          texts: content,
+          content,
           thumbnail: undefined
         })
-        intermediatePage.setGetContent(async () => content.map(cloneText))
+        intermediatePage.setGetContent(async () => content.map(item =>
+          item instanceof IntermediateImage ? cloneImage(item) : cloneText(item)
+        ))
         intermediatePage.setGetThumbnail(async () => normalizedPage.thumbnail)
-        intermediatePage.texts = normalizedPage.texts
-        intermediatePage.thumbnail = normalizedPage.thumbnail
         return intermediatePage
       })
     : []

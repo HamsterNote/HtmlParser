@@ -61,6 +61,16 @@ def test_parse_current_page_produces_intermediate_json(demo_page: Page) -> None:
 
 @pytest.mark.e2e
 @pytest.mark.smoke
+def test_demo_page_contains_sample_image(demo_page: Page) -> None:
+    """验证演示页面包含示例图片元素。"""
+    image = demo_page.locator('.sample-image img')
+    expect(image).to_have_count(1)
+    expect(image).to_have_attribute('src', './assets/test.png')
+    expect(image).to_have_attribute('alt', 'test image')
+
+
+@pytest.mark.e2e
+@pytest.mark.smoke
 def test_parse_then_decode_renders_html_preview(demo_page: Page) -> None:
     """验证先解析再解码后会在预览区域渲染 HTML iframe。"""
     parse_and_wait(demo_page)
