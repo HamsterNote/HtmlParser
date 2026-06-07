@@ -12,7 +12,7 @@
         <h1>Encode Demo</h1>
       </header>
 
-      <section class="card">
+      <section id="sample-content" class="card">
         <h2>Sample content</h2>
         <p>
           This page contains mixed content: <strong>bold text</strong>,
@@ -23,7 +23,13 @@
           layout for each line.
         </p>
         <div class="sample-image">
-          <img src="./assets/test.png" alt="test image" />
+          <img src="./assets/test.png" alt="test sample" />
+        </div>
+        <div class="styled-background-sample">
+          Styled background sample text appears before the inline image so mixed
+          content order can be inspected.
+          <img src="./assets/test.png" alt="styled mixed content sample" />
+          <span>More styled sample text follows the image.</span>
         </div>
         <div class="special-cases">
           <h3>Special text cases</h3>
@@ -61,6 +67,21 @@
       <section class="card">
         <h3>JSON Input</h3>
         <p class="input-hint">Paste intermediate document JSON here and click "Decode JSON Input" to render preview.</p>
+        <div class="exclude-selector-section">
+          <label class="exclude-selector-label" for="exclude-selectors">
+            Encode exclude selectors
+          </label>
+          <p class="input-hint">
+            JSON array syntax only. The default excludes page chrome and demo
+            controls, leaving only <code>#sample-content</code> in the encoded output.
+          </p>
+          <input
+            id="exclude-selectors"
+            class="exclude-selector-input"
+            data-role="exclude-selectors"
+            value='["body > :not(.container)", ".container > :not(#sample-content)"]'
+          />
+        </div>
         <textarea
           class="json-input"
           data-role="json-input"

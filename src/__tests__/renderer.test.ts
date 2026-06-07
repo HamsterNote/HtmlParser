@@ -1,4 +1,5 @@
 import {
+	type IntermediateContentSerialized,
 	IntermediateDocument,
 	IntermediateImage,
 	IntermediatePage,
@@ -7,6 +8,7 @@ import {
 	TextDir,
 } from "@hamster-note/types";
 import { HtmlPage, RenderViews } from "../HtmlPage.js";
+import { renderDecodeHtmlFromPayload } from "../htmlParserWorkerCore.js";
 import type { BackgroundDecodeOptions, DecodeOptions } from "../index.js";
 import { HtmlParser } from "../index.js";
 import { buildOffscreenPageElement } from "../pageThumbnailDom.js";
@@ -826,6 +828,662 @@ describe("decodeToHtml background options", () => {
 			} finally {
 				handle.restore();
 				restoreDocument();
+			}
+		});
+	});
+});
+
+describe("Task 1 decode page container assumption probe", () => {
+	it("documents rendered page containers as absolute positioning contexts", async () => {
+		const html = renderDecodeHtmlFromPayload({
+			pages: [
+				{
+					id: "task-1-page-container",
+					width: 200,
+					height: 200,
+					content: [],
+				},
+			],
+			options: { background: { includeBackground: false } },
+		});
+
+		await withDomDocument(async ({ document }) => {
+			const defaultView = document.defaultView;
+			if (!defaultView) throw new Error("expected defaultView in renderer test");
+
+			document.body.innerHTML = html;
+			const pageContainer = document.querySelector(
+				".hamster-note-page",
+			) as HTMLElement | null;
+			expect(pageContainer).not.toBeNull();
+			if (!pageContainer) throw new Error("expected rendered page container");
+
+			const child = document.createElement("img");
+			Object.assign(child.style, {
+				position: "absolute",
+				left: "10px",
+				top: "20px",
+				width: "30px",
+				height: "40px",
+			});
+			pageContainer.appendChild(child);
+
+			// 探针：renderer 输出的 page class 需要让 absolute child 以页面为定位上下文。
+			const inlinePosition = pageContainer.style.position;
+			const computedPosition = defaultView.getComputedStyle(pageContainer).position;
+			const childComputed = defaultView.getComputedStyle(child);
+
+			expect(inlinePosition).toBe("");
+			expect(computedPosition).toBe("relative");
+			expect([inlinePosition, computedPosition]).toContain("relative");
+			expect(child.style.position).toBe("absolute");
+			expect(child.style.left).toBe("10px");
+			expect(child.style.top).toBe("20px");
+			expect(child.style.width).toBe("30px");
+			expect(child.style.height).toBe("40px");
+			expect(childComputed.position).toBe("absolute");
+			expect(childComputed.left).toBe("10px");
+			expect(childComputed.top).toBe("20px");
+		});
+	});
+});
+
+
+describe("decode HTML foreground image rendering", () => {
+	const buildDecodeImage = (
+		overrides: Partial<IntermediateImage> = {},
+	): IntermediateImage =>
+		new IntermediateImage({
+			id: "image-1",
+			src: "data:image/png;base64,FOREGROUND",
+			polygon: [
+				[20, 30],
+				[120, 30],
+				[120, 80],
+				[20, 80],
+			],
+			opacity: 0.8,
+			...overrides,
+		});
+
+	const buildDecodeText = (
+		overrides: Partial<IntermediateText> = {},
+	): IntermediateText =>
+		new IntermediateText({
+			id: "text-1",
+			content: "Foreground text",
+			fontSize: 16,
+			fontFamily: "Inter",
+			fontWeight: 400,
+			italic: false,
+			color: "#111111",
+			polygon: [
+				[30, 40],
+				[130, 40],
+				[130, 70],
+				[30, 70],
+			],
+			lineHeight: 20,
+			ascent: 12,
+			descent: 4,
+			vertical: false,
+			dir: TextDir.LTR,
+			opacity: 1,
+			skew: 0,
+			isEOL: true,
+			...overrides,
+		});
+
+	const renderDecodeFixture = (
+		content: IntermediateContentSerialized[],
+	): string =>
+		renderDecodeHtmlFromPayload({
+			pages: [
+				{
+					id: "foreground-page",
+					width: 200,
+					height: 120,
+					content,
+				},
+			],
+			options: { background: { includeBackground: false } },
+		});
+
+	it("renders an IntermediateImage as a positioned <img> in decode HTML", async () => {
+		const image = buildDecodeImage({
+			id: 'image-"escaped"',
+			src: "data:image/png;base64,FOREGROUND&ONE",
+		});
+		const html = renderDecodeFixture([IntermediateImage.serialize(image)]);
+
+		await withDomDocument(async ({ document }) => {
+			document.body.innerHTML = html;
+			const img = document.querySelector(
+				"img.hamster-note-image",
+			) as HTMLImageElement | null;
+
+			expect(img).not.toBeNull();
+			if (!img) throw new Error("expected rendered foreground image");
+			expect(img.id).toBe('image-"escaped"');
+			expect(img.getAttribute("src")).toBe(
+				"data:image/png;base64,FOREGROUND&ONE",
+			);
+			expect(img.style.position).toBe("absolute");
+			expect(img.style.left).toBe("20px");
+			expect(img.style.top).toBe("30px");
+			expect(img.style.width).toBe("100px");
+			expect(img.style.height).toBe("50px");
+			expect(img.style.opacity).toBe("0.8");
+			expect(img.style.objectFit).toBe("fill");
+		});
+	});
+
+	it("orders foreground images and text spans by sourceOrder/content order", async () => {
+		const firstImage = buildDecodeImage({ id: "image-first" });
+		const text = buildDecodeText({ id: "text-middle" });
+		const lastImage = buildDecodeImage({
+			id: "image-last",
+			src: "data:image/png;base64,LAST",
+		});
+		const html = renderDecodeFixture([
+			IntermediateImage.serialize(firstImage),
+			IntermediateText.serialize(text),
+			IntermediateImage.serialize(lastImage),
+		]);
+
+		await withDomDocument(async ({ document }) => {
+			document.body.innerHTML = html;
+			const page = document.querySelector(".hamster-note-page") as HTMLElement | null;
+			expect(page).not.toBeNull();
+			if (!page) throw new Error("expected rendered page");
+
+			expect(Array.from(page.children).map((child) => child.id)).toEqual([
+				"image-first",
+				"text-middle",
+				"image-last",
+			]);
+			expect(Array.from(page.children).map((child) => child.tagName)).toEqual([
+				"IMG",
+				"SPAN",
+				"IMG",
+			]);
+		});
+	});
+
+	it("applies bbox-derived left/top/width/height from polygon", async () => {
+		const image = buildDecodeImage({
+			polygon: [
+				[32, 44],
+				[132, 44],
+				[132, 94],
+				[32, 94],
+			],
+		});
+		const html = renderDecodeFixture([IntermediateImage.serialize(image)]);
+
+		await withDomDocument(async ({ document }) => {
+			document.body.innerHTML = html;
+			const img = document.querySelector(
+				"img.hamster-note-image",
+			) as HTMLImageElement | null;
+
+			expect(img).not.toBeNull();
+			if (!img) throw new Error("expected rendered foreground image");
+			expect(img.style.left).toBe("32px");
+			expect(img.style.top).toBe("44px");
+			expect(img.style.width).toBe("100px");
+			expect(img.style.height).toBe("50px");
+		});
+	});
+
+	// 回归测试：图片 polygon/clip 坐标是像素空间，0.5 这类 subpixel 不能被格式化成百分比。
+	it("renders subpixel image bbox values as px, not percent", async () => {
+		const image = buildDecodeImage({
+			polygon: [
+				[0.5, 0.5],
+				[100.25, 0.5],
+				[100.25, 60.5],
+				[0.5, 60.5],
+			],
+		});
+		const html = renderDecodeFixture([IntermediateImage.serialize(image)]);
+
+		await withDomDocument(async ({ document }) => {
+			document.body.innerHTML = html;
+			const img = document.querySelector(
+				"img.hamster-note-image",
+			) as HTMLImageElement | null;
+
+			expect(img).not.toBeNull();
+			if (!img) throw new Error("expected rendered foreground image");
+			expect(img.style.left).toBe("0.5px");
+			expect(img.style.top).toBe("0.5px");
+			expect(img.style.width).toBe("99.75px");
+			expect(img.style.height).toBe("60px");
+
+			const positionAndSize = [
+				img.style.left,
+				img.style.top,
+				img.style.width,
+				img.style.height,
+			].join(";");
+			expect(positionAndSize).not.toContain("%");
+
+			const styleAttribute = img.getAttribute("style") ?? "";
+			expect(styleAttribute).toContain("left: 0.5px");
+			expect(styleAttribute).toContain("top: 0.5px");
+			expect(styleAttribute).toContain("width: 99.75px");
+			expect(styleAttribute).toContain("height: 60px");
+		});
+	});
+
+	it("text z-index is higher than image z-index", async () => {
+		const image = buildDecodeImage({ id: "image-layer" });
+		const text = buildDecodeText({ id: "text-layer" });
+		const html = renderDecodeFixture([
+			IntermediateImage.serialize(image),
+			IntermediateText.serialize(text),
+		]);
+
+		await withDomDocument(async ({ document }) => {
+			const defaultView = document.defaultView;
+			if (!defaultView) throw new Error("expected defaultView in renderer test");
+			document.body.innerHTML = html;
+
+			const img = document.querySelector("#image-layer") as HTMLImageElement | null;
+			const span = document.querySelector("#text-layer") as HTMLSpanElement | null;
+			expect(img).not.toBeNull();
+			expect(span).not.toBeNull();
+			if (!img || !span) throw new Error("expected image and text layers");
+
+			expect(defaultView.getComputedStyle(img).zIndex).toBe("1");
+			expect(defaultView.getComputedStyle(span).zIndex).toBe("2");
+		});
+	});
+
+	it("emits clip-path inset when image.clip is provided", async () => {
+		const image = buildDecodeImage({
+			clip: { x: 5, y: 3, width: 80, height: 40 },
+		});
+		const html = renderDecodeFixture([IntermediateImage.serialize(image)]);
+
+		await withDomDocument(async ({ document }) => {
+			document.body.innerHTML = html;
+			const img = document.querySelector(
+				"img.hamster-note-image",
+			) as HTMLImageElement | null;
+
+			expect(img).not.toBeNull();
+			if (!img) throw new Error("expected rendered foreground image");
+			expect(img.style.clipPath).toBe("inset(3px 15px 7px 5px)");
+		});
+	});
+
+	it("falls back to bbox when polygon is not axis-aligned (rotated)", async () => {
+		const image = buildDecodeImage({
+			polygon: [
+				[40, 20],
+				[100, 50],
+				[80, 110],
+				[20, 80],
+			],
+		});
+		const html = renderDecodeFixture([IntermediateImage.serialize(image)]);
+
+		await withDomDocument(async ({ document }) => {
+			document.body.innerHTML = html;
+			const img = document.querySelector(
+				"img.hamster-note-image",
+			) as HTMLImageElement | null;
+
+			expect(img).not.toBeNull();
+			if (!img) throw new Error("expected rendered foreground image");
+			expect(img.style.left).toBe("20px");
+			expect(img.style.top).toBe("20px");
+			expect(img.style.width).toBe("80px");
+			expect(img.style.height).toBe("90px");
+			expect(img.style.transform).toBe("");
+		});
+	});
+});
+
+describe("background style whitelist capture", () => {
+	const defineRect = (
+		element: Element,
+		rect: Pick<DOMRect, "left" | "top" | "width" | "height">,
+	): void => {
+		Object.defineProperty(element, "getBoundingClientRect", {
+			configurable: true,
+			value: () => ({
+				x: rect.left,
+				y: rect.top,
+				left: rect.left,
+				top: rect.top,
+				right: rect.left + rect.width,
+				bottom: rect.top + rect.height,
+				width: rect.width,
+				height: rect.height,
+				toJSON: () => ({}),
+			}),
+		});
+	};
+
+	const buildBackgroundText = (): IntermediateText =>
+		new IntermediateText({
+			id: "background-text",
+			content: "Text must stay out of background",
+			fontSize: 16,
+			fontFamily: "Inter",
+			fontWeight: 400,
+			italic: false,
+			color: "#111111",
+			polygon: [
+				[10, 20],
+				[110, 20],
+				[110, 60],
+				[10, 60],
+			],
+			lineHeight: 20,
+			ascent: 12,
+			descent: 4,
+			vertical: false,
+			dir: TextDir.LTR,
+			skew: 0,
+			isEOL: true,
+		});
+
+	const getVisualContainers = (root: ParentNode): HTMLElement[] =>
+		Array.from(
+			root.querySelectorAll<HTMLElement>(".hamster-note-visual-container"),
+		);
+
+	it("captures background-color, border, border-radius, box-shadow, outline into offscreen DOM when excludeTextFromBackground is true", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("section");
+			source.textContent = "visual label must not be copied";
+			Object.assign(source.style, {
+				backgroundColor: "rgb(240, 10, 20)",
+				borderTopWidth: "1px",
+				borderTopStyle: "solid",
+				borderTopColor: "rgb(1, 2, 3)",
+				borderRightWidth: "2px",
+				borderRightStyle: "dashed",
+				borderRightColor: "rgb(4, 5, 6)",
+				borderBottomWidth: "3px",
+				borderBottomStyle: "double",
+				borderBottomColor: "rgb(7, 8, 9)",
+				borderLeftWidth: "4px",
+				borderLeftStyle: "solid",
+				borderLeftColor: "rgb(10, 11, 12)",
+				borderTopLeftRadius: "5px",
+				borderTopRightRadius: "6px",
+				borderBottomRightRadius: "7px",
+				borderBottomLeftRadius: "8px",
+				boxShadow: "1px 2px 3px rgb(9, 8, 7)",
+				outlineWidth: "2px",
+				outlineStyle: "solid",
+				outlineColor: "rgb(12, 13, 14)",
+			});
+			defineRect(source, { left: 15, top: 25, width: 120, height: 45 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-visual", width: 200, height: 120, texts: [] },
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const [container] = getVisualContainers(handle.element);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+
+				expect(container.style.backgroundColor).toBe("rgb(240, 10, 20)");
+				expect(container.style.borderTopWidth).toBe("1px");
+				expect(container.style.borderTopStyle).toBe("solid");
+				expect(container.style.borderTopColor).toBe("rgb(1, 2, 3)");
+				expect(container.style.borderRightWidth).toBe("2px");
+				expect(container.style.borderRightStyle).toBe("dashed");
+				expect(container.style.borderRightColor).toBe("rgb(4, 5, 6)");
+				expect(container.style.borderBottomWidth).toBe("3px");
+				expect(container.style.borderBottomStyle).toBe("double");
+				expect(container.style.borderBottomColor).toBe("rgb(7, 8, 9)");
+				expect(container.style.borderLeftWidth).toBe("4px");
+				expect(container.style.borderLeftStyle).toBe("solid");
+				expect(container.style.borderLeftColor).toBe("rgb(10, 11, 12)");
+				expect(container.style.borderTopLeftRadius).toBe("5px");
+				expect(container.style.borderTopRightRadius).toBe("6px");
+				expect(container.style.borderBottomRightRadius).toBe("7px");
+				expect(container.style.borderBottomLeftRadius).toBe("8px");
+				expect(container.style.boxShadow).toBe("1px 2px 3px rgb(9, 8, 7)");
+				expect(container.style.outlineWidth).toBe("2px");
+				expect(container.style.outlineStyle).toBe("solid");
+				expect(container.style.outlineColor).toBe("rgb(12, 13, 14)");
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	it("omits text content from captured visual containers", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("article");
+			source.textContent = "Secret foreground copy";
+			source.style.backgroundColor = "rgb(10, 20, 30)";
+			defineRect(source, { left: 10, top: 12, width: 80, height: 32 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{
+					id: "page-no-text",
+					width: 160,
+					height: 100,
+					texts: [buildBackgroundText()],
+				},
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const [container] = getVisualContainers(handle.element);
+				expect(container?.textContent).toBe("");
+				expect(handle.element.textContent).not.toContain("Secret foreground copy");
+				expect(handle.element.textContent).not.toContain(
+					"Text must stay out of background",
+				);
+				expect(handle.element.querySelectorAll(".hamster-note-text")).toHaveLength(0);
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	it("skips transform/filter/mix-blend-mode (non-whitelist properties)", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("div");
+			Object.assign(source.style, {
+				backgroundColor: "rgb(20, 30, 40)",
+				transform: "rotate(5deg)",
+				filter: "blur(2px)",
+				mixBlendMode: "multiply",
+				display: "flex",
+				margin: "12px",
+				padding: "8px",
+				fontSize: "42px",
+				color: "rgb(1, 1, 1)",
+			});
+			defineRect(source, { left: 4, top: 5, width: 60, height: 70 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-whitelist", width: 100, height: 100, texts: [] },
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const [container] = getVisualContainers(handle.element);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+				const styleText = container.getAttribute("style") ?? "";
+
+				expect(styleText).toContain("background-color");
+				expect(styleText).not.toContain("transform");
+				expect(styleText).not.toContain("filter");
+				expect(styleText).not.toContain("mix-blend-mode");
+				expect(styleText).not.toContain("display");
+				expect(styleText).not.toContain("margin");
+				expect(styleText).not.toContain("padding");
+				expect(styleText).not.toContain("font-size");
+				expect(styleText).not.toContain("color: rgb(1, 1, 1)");
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	it("skips elements with zero rect or no visible whitelist style", async () => {
+		await withDomDocument(async ({ document }) => {
+			const zeroRect = document.createElement("div");
+			zeroRect.style.backgroundColor = "rgb(200, 0, 0)";
+			defineRect(zeroRect, { left: 1, top: 1, width: 0, height: 10 });
+
+			const transparentOnly = document.createElement("div");
+			transparentOnly.style.backgroundColor = "rgba(0, 0, 0, 0)";
+			defineRect(transparentOnly, { left: 2, top: 2, width: 20, height: 20 });
+
+			const visible = document.createElement("div");
+			visible.style.boxShadow = "2px 3px 4px rgb(1, 2, 3)";
+			defineRect(visible, { left: 3, top: 4, width: 30, height: 40 });
+
+			document.body.append(zeroRect, transparentOnly, visible);
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-skip", width: 120, height: 120, texts: [] },
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const containers = getVisualContainers(handle.element);
+				expect(containers).toHaveLength(1);
+				expect(containers[0]?.style.boxShadow).toBe(
+					"2px 3px 4px rgb(1, 2, 3)",
+				);
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	it("geometry uses element getBoundingClientRect-derived px values", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("aside");
+			source.style.outline = "3px solid rgb(4, 5, 6)";
+			defineRect(source, { left: 31.5, top: 42.25, width: 99.75, height: 18.5 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-geometry", width: 200, height: 100, texts: [] },
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const [container] = getVisualContainers(handle.element);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+				expect(container.style.position).toBe("absolute");
+				expect(container.style.left).toBe("31.5px");
+				expect(container.style.top).toBe("42.25px");
+				expect(container.style.width).toBe("99.75px");
+				expect(container.style.height).toBe("18.5px");
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	it("threads encode source DOM into excludeTextFromBackground thumbnail capture", async () => {
+		await withDomDocument(async ({ document, HTMLElement }) => {
+			const restoreDocument = exposeGlobalDocument(document);
+			const handle = installFakeHtml2Canvas();
+			const rectDescriptor = Object.getOwnPropertyDescriptor(
+				HTMLElement.prototype,
+				"getBoundingClientRect",
+			);
+
+			Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+				configurable: true,
+				value: function getBoundingClientRectForStyleFixture(this: HTMLElement) {
+					if (this.id === "styled-source") {
+						return {
+							x: 22,
+							y: 33,
+							left: 22,
+							top: 33,
+							right: 102,
+							bottom: 77,
+							width: 80,
+							height: 44,
+							toJSON: () => ({}),
+						};
+					}
+
+					if (typeof rectDescriptor?.value === "function") {
+						return rectDescriptor.value.call(this);
+					}
+
+					return {
+						x: 0,
+						y: 0,
+						left: 0,
+						top: 0,
+						right: 0,
+						bottom: 0,
+						width: 0,
+						height: 0,
+						toJSON: () => ({}),
+					};
+				},
+			});
+
+			try {
+				const html = `<div id="styled-source" style="background-color: rgb(44, 55, 66); border: 2px solid rgb(1, 2, 3);">Encoded foreground text</div>`;
+				const buffer = new TextEncoder().encode(html).buffer;
+				const doc = await HtmlParser.encode(buffer);
+
+				await HtmlParser.decodeToHtml(doc.getIntermediateDocument(), {
+					background: { excludeTextFromBackground: true },
+				});
+
+				const capturedElement = handle.calls[0]?.element;
+				expect(capturedElement).toBeDefined();
+				if (!capturedElement) throw new Error("expected html2canvas call");
+				const [container] = getVisualContainers(capturedElement);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+
+				expect(container.style.backgroundColor).toBe("rgb(44, 55, 66)");
+				expect(container.style.left).toBe("22px");
+				expect(container.style.top).toBe("33px");
+				expect(container.style.width).toBe("80px");
+				expect(container.style.height).toBe("44px");
+				expect(capturedElement.textContent).not.toContain(
+					"Encoded foreground text",
+				);
+			} finally {
+				handle.restore();
+				restoreDocument();
+				if (rectDescriptor) {
+					Object.defineProperty(
+						HTMLElement.prototype,
+						"getBoundingClientRect",
+						rectDescriptor,
+					);
+				} else {
+					delete HTMLElement.prototype.getBoundingClientRect;
+				}
 			}
 		});
 	});

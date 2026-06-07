@@ -43,7 +43,9 @@ import {
 import { isIntermediateImageLike, isIntermediateTextLike } from "./intermediateTextGuard.js";
 import {
 	buildOffscreenPageElement,
+	captureWhitelistedStyleContainerModels,
 	type OffscreenPageHandle,
+	type WhitelistedStyleContainerModel,
 } from "./pageThumbnailDom.js";
 import { measureTextBaseline } from "./textMeasurement.js";
 
@@ -84,8 +86,33 @@ export type Html2CanvasLike = (
 	options?: Record<string, unknown>,
 ) => Promise<{ toDataURL(type?: string): string }>;
 export type Html2CanvasLoader = () => Promise<Html2CanvasLike>;
+export type EncodeOptions = { excludeSelectors?: string[] };
+
+function buildExcludeMatcher(
+	doc: Document,
+	selectors: string[] | undefined,
+): (el: Element) => boolean {
+	if (!selectors || selectors.length === 0) return () => false;
+
+	const probe = doc.createElement("div");
+	selectors.forEach((selector) => {
+		try {
+			// 校验排除选择器；非法选择器一律抛出确定性错误。
+			probe.matches(selector);
+		} catch {
+			throw new Error(`Invalid exclude selector: ${selector}`);
+		}
+	});
+
+	return (el) => selectors.some((s) => el.matches(s) || !!el.closest(s));
+}
 
 let html2canvasLoaderOverride: Html2CanvasLoader | null = null;
+const thumbnailSourceDocuments = new WeakMap<IntermediatePage, Document>();
+const thumbnailStyleContainers = new WeakMap<
+	IntermediatePage,
+	readonly WhitelistedStyleContainerModel[]
+>();
 export const setHtml2CanvasLoader = (
 	loader: Html2CanvasLoader | null,
 ): void => {
@@ -110,6 +137,8 @@ function buildLazyThumbnailFn(
 	images: IntermediateImage[],
 	width: number,
 	height: number,
+	sourceDoc?: Document,
+	styleContainers?: readonly WhitelistedStyleContainerModel[],
 ): (
 	scale: number,
 	options?: BackgroundDecodeOptions,
@@ -118,6 +147,12 @@ function buildLazyThumbnailFn(
 	let cachedScale: number | undefined;
 	let inFlight: Promise<IntermediateImage | undefined> | null = null;
 	let inFlightScale: number | undefined;
+	if (sourceDoc) {
+		thumbnailSourceDocuments.set(page, sourceDoc);
+	}
+	if (styleContainers) {
+		thumbnailStyleContainers.set(page, styleContainers);
+	}
 
 	return async (
 		scale: number,
@@ -152,9 +187,11 @@ function buildLazyThumbnailFn(
 					images,
 					width,
 					height,
-					localScale,
-					options,
-				);
+			localScale,
+			options,
+			sourceDoc ?? thumbnailSourceDocuments.get(page),
+			styleContainers ?? thumbnailStyleContainers.get(page),
+		);
 				if (
 					thumbnailImage &&
 					(cachedScale === undefined || localScale >= cachedScale)
@@ -188,6 +225,8 @@ async function captureThumbnail(
 	height: number,
 	scale: number,
 	options?: BackgroundDecodeOptions,
+	sourceDoc?: Document,
+	styleContainers?: readonly WhitelistedStyleContainerModel[],
 ): Promise<IntermediateImage | undefined> {
 	await Promise.resolve();
 	let handle: OffscreenPageHandle | undefined;
@@ -198,11 +237,18 @@ async function captureThumbnail(
 			devConsoleLog("[encode] thumbnail capture skipped: document unavailable");
 			return undefined;
 		}
+		const effectiveSourceDoc = sourceDoc ?? thumbnailSourceDocuments.get(page);
+		const effectiveStyleContainers =
+			styleContainers ?? thumbnailStyleContainers.get(page);
 
 		handle = buildOffscreenPageElement(
 			{ id: page.id, width, height, texts, images },
 			doc,
-			{ excludeTextFromBackground: options?.excludeTextFromBackground },
+			{
+				excludeTextFromBackground: options?.excludeTextFromBackground,
+				sourceDoc: effectiveSourceDoc,
+				styleContainers: effectiveStyleContainers,
+			},
 		);
 		const loader = __getHtml2CanvasLoader();
 		const html2canvas = await loader();
@@ -487,6 +533,7 @@ function parseInlineStyle(el: Element): ParsedInlineStyle {
 
 type PendingTextSegment = {
 	content: string;
+	sourceOrder: number;
 	style: {
 		fontSize: number;
 		lineHeight: number;
@@ -517,8 +564,13 @@ type RectLike = {
 
 type RenderedTextSegment = {
 	content: string;
+	sourceOrder: number;
 	style: ComputedTextStyle;
 	rect: RectLike;
+};
+
+type SourceOrderedIntermediate = {
+	sourceOrder?: unknown;
 };
 
 type Matrix2D = {
@@ -550,6 +602,37 @@ function isValidRect(rect: RectLike | null | undefined): rect is RectLike {
 		rect.width > 0 &&
 		rect.height > 0
 	);
+}
+
+function buildDomSourceOrderMap(doc: Document): WeakMap<Node, number> {
+	const orderMap = new WeakMap<Node, number>();
+	let nextOrder = 0;
+
+	const walk = (node: Node) => {
+		// 内部排序提示：按 DOM DFS 访问顺序编号，只用于 encode 混排合并，不进入最终类型契约。
+		orderMap.set(node, nextOrder++);
+		for (const child of Array.from(node.childNodes)) walk(child);
+	};
+
+	if (doc.body) walk(doc.body);
+	return orderMap;
+}
+
+function readDomSourceOrder(
+	sourceOrderMap: WeakMap<Node, number>,
+	node: Node,
+	fallback: number,
+): number {
+	return sourceOrderMap.get(node) ?? fallback;
+}
+
+function readIntermediateSourceOrder(
+	item: IntermediateText | IntermediateImage,
+): number | undefined {
+	const sourceOrder = (item as SourceOrderedIntermediate).sourceOrder;
+	return typeof sourceOrder === "number" && Number.isFinite(sourceOrder)
+		? sourceOrder
+		: undefined;
 }
 
 function estimateFontMetrics(
@@ -1179,6 +1262,8 @@ export class HtmlParser extends DocumentParser {
 
 	private static collectRenderedTextSegments(
 		doc: Document,
+		excludeMatcher: (el: Element) => boolean = () => false,
+		sourceOrderMap: WeakMap<Node, number> = buildDomSourceOrderMap(doc),
 	): RenderedTextSegment[] {
 		const body = doc.body;
 		const defaultFontSize = 16;
@@ -1197,6 +1282,11 @@ export class HtmlParser extends DocumentParser {
 			const normalized = normalizeTextContent(raw);
 
 			if (!parentElement || !normalized) {
+				currentNode = walker.nextNode();
+				continue;
+			}
+
+			if (excludeMatcher(parentElement)) {
 				currentNode = walker.nextNode();
 				continue;
 			}
@@ -1224,6 +1314,11 @@ export class HtmlParser extends DocumentParser {
 				lineSegments.forEach((lineSegment) => {
 					segments.push({
 						content: lineSegment.content,
+						sourceOrder: readDomSourceOrder(
+							sourceOrderMap,
+							textNode,
+							segments.length,
+						),
 						style,
 						rect: {
 							left: lineSegment.rect.left,
@@ -1238,6 +1333,11 @@ export class HtmlParser extends DocumentParser {
 				if (rect) {
 					segments.push({
 						content: normalized,
+						sourceOrder: readDomSourceOrder(
+							sourceOrderMap,
+							textNode,
+							segments.length,
+						),
 						style,
 						rect: {
 							left: rect.left,
@@ -1262,6 +1362,8 @@ export class HtmlParser extends DocumentParser {
 	private static async collectImagesFromDocument(
 		doc: Document,
 		id: string,
+		excludeMatcher: (el: Element) => boolean = () => false,
+		sourceOrderMap: WeakMap<Node, number> = buildDomSourceOrderMap(doc),
 	): Promise<IntermediateImage[]> {
 		const images: IntermediateImage[] = [];
 		const imgElements = doc.querySelectorAll("img");
@@ -1271,8 +1373,12 @@ export class HtmlParser extends DocumentParser {
 
 		for (let i = 0; i < imgElements.length; i++) {
 			const img = imgElements[i];
+			if (excludeMatcher(img)) continue;
+
 			const src = img.getAttribute("src") || "";
 			if (!src) continue;
+			const style = img.ownerDocument.defaultView?.getComputedStyle(img);
+			if (style?.display === "none" || style?.visibility === "hidden") continue;
 
 			const rect = img.getBoundingClientRect();
 			if (!rect || rect.width === 0 || rect.height === 0) continue;
@@ -1293,21 +1399,26 @@ export class HtmlParser extends DocumentParser {
 				try {
 					dataUrl = await HtmlParser.imageToDataUrl(img);
 				} catch (e) {
-					devConsoleLog("[collectImagesFromDocument] 图片转换失败，跳过", {
+					devConsoleLog("[collectImagesFromDocument] 图片转换失败，保留原始 src", {
 						src: src.slice(0, 100),
 						error: e,
 					});
-					continue;
+					dataUrl = src;
 				}
 			}
 
 			images.push(
-				new IntermediateImage({
-					id: `${id}-page-1-image-${i}`,
-					src: dataUrl,
-					polygon,
-					opacity: 1,
-				}),
+				Object.assign(
+					new IntermediateImage({
+						id: `${id}-page-1-image-${i}`,
+						src: dataUrl,
+						polygon,
+						opacity: 1,
+					}),
+					{
+						sourceOrder: readDomSourceOrder(sourceOrderMap, img, i),
+					},
+				),
 			);
 		}
 
@@ -1387,23 +1498,26 @@ export class HtmlParser extends DocumentParser {
 				height,
 			);
 
-			return new IntermediateText({
-				id: `${id}-page-1-text-${index}`,
-				content: segment.content,
-				fontSize: segment.style.fontSize,
-				fontFamily: segment.style.fontFamily,
-				fontWeight: segment.style.fontWeight,
-				italic: segment.style.italic,
-				color: segment.style.color,
-				polygon,
-				lineHeight: segment.style.lineHeight,
-				ascent,
-				descent,
-				vertical: segment.style.writingMode === "vertical-rl",
-				dir: detectDir(segment.content),
-				skew: 0,
-				isEOL: !isSameLine,
-			});
+			return Object.assign(
+				new IntermediateText({
+					id: `${id}-page-1-text-${index}`,
+					content: segment.content,
+					fontSize: segment.style.fontSize,
+					fontFamily: segment.style.fontFamily,
+					fontWeight: segment.style.fontWeight,
+					italic: segment.style.italic,
+					color: segment.style.color,
+					polygon,
+					lineHeight: segment.style.lineHeight,
+					ascent,
+					descent,
+					vertical: segment.style.writingMode === "vertical-rl",
+					dir: detectDir(segment.content),
+					skew: 0,
+					isEOL: !isSameLine,
+				}),
+				{ sourceOrder: segment.sourceOrder },
+			);
 		});
 
 		const maxRight = texts.reduce(
@@ -1562,6 +1676,8 @@ export class HtmlParser extends DocumentParser {
 	private static collectTextsFromDocumentFallback(
 		doc: Document,
 		id: string,
+		excludeMatcher: (el: Element) => boolean = () => false,
+		sourceOrderMap: WeakMap<Node, number> = buildDomSourceOrderMap(doc),
 	): { title: string; texts: IntermediateText[]; pageHeight: number } {
 		devConsoleLog("[collectTextsFromDocument] 开始解析 Document", { id });
 		const title = doc.title || "Untitled HTML";
@@ -1626,28 +1742,31 @@ export class HtmlParser extends DocumentParser {
 				const width = segment.metrics.width;
 				const height = segment.metrics.height;
 				texts.push(
-					new IntermediateText({
-						id: `${id}-page-1-text-${idx++}`,
-						content: segment.content,
-						fontSize: segment.style.fontSize,
-						fontFamily: segment.style.fontFamily,
-						fontWeight: segment.style.fontWeight,
-						italic: segment.style.italic,
-						color: segment.style.color,
-						polygon: [
-							[x, y],
-							[x + width, y],
-							[x + width, y + height],
-							[x, y + height],
-						],
-						lineHeight: segment.style.lineHeight,
-						ascent: segment.metrics.ascent,
-						descent: segment.metrics.descent,
-						vertical: segment.style.writingMode === "vertical-rl",
-						dir: detectDir(segment.content),
-						skew: 0,
-						isEOL: index === pendingLine.length - 1,
-					}),
+					Object.assign(
+						new IntermediateText({
+							id: `${id}-page-1-text-${idx++}`,
+							content: segment.content,
+							fontSize: segment.style.fontSize,
+							fontFamily: segment.style.fontFamily,
+							fontWeight: segment.style.fontWeight,
+							italic: segment.style.italic,
+							color: segment.style.color,
+							polygon: [
+								[x, y],
+								[x + width, y],
+								[x + width, y + height],
+								[x, y + height],
+							],
+							lineHeight: segment.style.lineHeight,
+							ascent: segment.metrics.ascent,
+							descent: segment.metrics.descent,
+							vertical: segment.style.writingMode === "vertical-rl",
+							dir: detectDir(segment.content),
+							skew: 0,
+							isEOL: index === pendingLine.length - 1,
+						}),
+						{ sourceOrder: segment.sourceOrder },
+					),
 				);
 				xCursor += width;
 			});
@@ -1660,6 +1779,10 @@ export class HtmlParser extends DocumentParser {
 			if (node.nodeType === ELEMENT_NODE) {
 				const el = node as Element;
 				devConsoleLog("[walk] 遇到元素节点", { tagName: el.tagName });
+				if (excludeMatcher(el)) {
+					devConsoleLog("[walk] 跳过排除选择器命中的子树", el.tagName);
+					return;
+				}
 				if (skipTags.has(el.tagName)) {
 					devConsoleLog("[walk] 跳过标签", el.tagName);
 					return;
@@ -1718,6 +1841,7 @@ export class HtmlParser extends DocumentParser {
 
 			pendingLine.push({
 				content,
+				sourceOrder: readDomSourceOrder(sourceOrderMap, node, pendingLine.length),
 				style: sty,
 				metrics: { width, height, ascent, descent },
 			});
@@ -1741,6 +1865,7 @@ export class HtmlParser extends DocumentParser {
 	private static async collectTextsFromDocument(
 		doc: Document,
 		id: string,
+		excludeMatcher: (el: Element) => boolean = () => false,
 	): Promise<{
 		title: string;
 		texts: IntermediateText[];
@@ -1750,13 +1875,23 @@ export class HtmlParser extends DocumentParser {
 	}> {
 		devConsoleLog("[collectTextsFromDocument] 开始解析 Document", { id });
 		const title = doc.title || "Untitled HTML";
+		const sourceOrderMap = buildDomSourceOrderMap(doc);
 
 		doc.documentElement.style.width = "1024px";
 		doc.body.style.margin = "0";
 		doc.body.style.padding = "0";
 
-		const renderedSegments = HtmlParser.collectRenderedTextSegments(doc);
-		const images = await HtmlParser.collectImagesFromDocument(doc, id);
+		const renderedSegments = HtmlParser.collectRenderedTextSegments(
+			doc,
+			excludeMatcher,
+			sourceOrderMap,
+		);
+		const images = await HtmlParser.collectImagesFromDocument(
+			doc,
+			id,
+			excludeMatcher,
+			sourceOrderMap,
+		);
 
 		if (renderedSegments.length > 0) {
 			const rendered = HtmlParser.buildRenderedTexts(
@@ -1775,7 +1910,12 @@ export class HtmlParser extends DocumentParser {
 			return { title, ...rendered, images };
 		}
 
-		const fallback = HtmlParser.collectTextsFromDocumentFallback(doc, id);
+		const fallback = HtmlParser.collectTextsFromDocumentFallback(
+			doc,
+			id,
+			excludeMatcher,
+			sourceOrderMap,
+		);
 		return {
 			title,
 			texts: fallback.texts,
@@ -1868,7 +2008,10 @@ export class HtmlParser extends DocumentParser {
 	 * 4) 估算每段文本的 width/height 与 y 累进，用于简单布局
 	 * 5) 返回 HtmlDocument 实例（包装 IntermediateDocument）
 	 */
-	static async encode(fileOrBuffer: ParserInput): Promise<HtmlDocument> {
+	static async encode(
+		fileOrBuffer: ParserInput,
+		options?: EncodeOptions,
+	): Promise<HtmlDocument> {
 		devConsoleLog("[encode] 开始编码 HTML", {
 			inputType: fileOrBuffer.constructor?.name || typeof fileOrBuffer,
 		});
@@ -1890,11 +2033,25 @@ export class HtmlParser extends DocumentParser {
 		let images: IntermediateImage[] = [];
 		let pageWidth = 800;
 		let pageHeight = 0;
+		let thumbnailSourceDoc: Document | undefined;
+		let capturedStyleContainers: WhitelistedStyleContainerModel[] | undefined;
 
 		const result = await HtmlParser.withIframeDocument(
 			html,
 			async ({ iframeDocument }) => {
-				return HtmlParser.collectTextsFromDocument(iframeDocument, id);
+				thumbnailSourceDoc = iframeDocument;
+				const excludeMatcher = buildExcludeMatcher(
+					iframeDocument,
+					options?.excludeSelectors,
+				);
+				const collected = await HtmlParser.collectTextsFromDocument(
+					iframeDocument,
+					id,
+					excludeMatcher,
+				);
+				capturedStyleContainers =
+					captureWhitelistedStyleContainerModels(iframeDocument);
+				return collected;
 			},
 		);
 		title = result.title || title;
@@ -1915,8 +2072,14 @@ export class HtmlParser extends DocumentParser {
 			title,
 			pageWidth,
 			pageHeight,
-			texts: texts.map((text) => IntermediateText.serialize(text)),
-			images: images.map((image) => IntermediateImage.serialize(image)),
+			texts: texts.map((text) => ({
+				...IntermediateText.serialize(text),
+				sourceOrder: readIntermediateSourceOrder(text),
+			})),
+			images: images.map((image) => ({
+				...IntermediateImage.serialize(image),
+				sourceOrder: readIntermediateSourceOrder(image),
+			})),
 		});
 
 		const infoList = [
@@ -1930,7 +2093,15 @@ export class HtmlParser extends DocumentParser {
 						thumbnail: undefined,
 					});
 					page.setGetThumbnail(
-						buildLazyThumbnailFn(page, texts, images, pageWidth, pageHeight),
+						buildLazyThumbnailFn(
+							page,
+							texts,
+							images,
+							pageWidth,
+							pageHeight,
+							thumbnailSourceDoc,
+							capturedStyleContainers,
+						),
 					);
 					return page;
 				},

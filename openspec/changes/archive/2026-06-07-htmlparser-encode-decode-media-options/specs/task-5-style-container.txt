@@ -1,0 +1,96 @@
+
+> @hamster-note/html-parser@0.7.0 test
+> NODE_OPTIONS='--experimental-vm-modules' jest --runInBand src/__tests__/renderer.test.ts -t captures background-color
+
+(node:1542016) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/__tests__/renderer.test.ts
+  renderer alignment
+    ○ skipped renders a non-rotated polygon with the shared transform pipeline
+    ○ skipped renders a rotated polygon with the same transform in both renderers
+    ○ skipped renders text even when baseline measurement fails
+    ○ skipped renders text-like objects without relying on class identity
+  decodeToHtml textControl overrides
+    ○ skipped legacy no-options decode produces identical output
+    ○ skipped applies color, fontSize, fontWeight to every text span
+    ○ skipped overrides falsy boolean fields (italic, vertical) even when originals are true
+    ○ skipped static decode forwards options to decodeToHtml
+    ○ skipped static decode does not vertically shrink text with signed negative descent
+    ○ skipped does not mutate source text/page/document after decode with overrides
+    ○ skipped text-like plain objects remain supported with overrides
+  decodeToHtml background options
+    ○ skipped skips background rendering when includeBackground is false
+    ○ skipped passes the configured backgroundQuality to getThumbnail
+    ○ skipped keeps the default background quality when options are omitted
+    ○ skipped excludes text spans from background capture when excludeTextFromBackground is true
+    ○ skipped buildOffscreenPageElement omits text spans when excludeTextFromBackground is true
+    ○ skipped buildOffscreenPageElement renders images regardless of excludeTextFromBackground
+    ○ skipped buildOffscreenPageElement renders clipped images with clip-path
+    ○ skipped keeps images in background capture while excluding text when excludeTextFromBackground is true
+  Task 1 decode page container assumption probe
+    ○ skipped documents rendered page containers as absolute positioning contexts
+  decode HTML foreground image rendering
+    ○ skipped renders an IntermediateImage as a positioned <img> in decode HTML
+    ○ skipped orders foreground images and text spans by sourceOrder/content order
+    ○ skipped applies bbox-derived left/top/width/height from polygon
+    ○ skipped text z-index is higher than image z-index
+    ○ skipped emits clip-path inset when image.clip is provided
+    ○ skipped falls back to bbox when polygon is not axis-aligned (rotated)
+  background style whitelist capture
+    ✓ captures background-color, border, border-radius, box-shadow, outline into offscreen DOM when excludeTextFromBackground is true (24 ms)
+    ○ skipped omits text content from captured visual containers
+    ○ skipped skips transform/filter/mix-blend-mode (non-whitelist properties)
+    ○ skipped skips elements with zero rect or no visible whitelist style
+    ○ skipped geometry uses element getBoundingClientRect-derived px values
+    ○ skipped threads encode source DOM into excludeTextFromBackground thumbnail capture
+
+----------------------------|---------|----------|---------|---------|-------------------------------------------------------
+File                        | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                     
+----------------------------|---------|----------|---------|---------|-------------------------------------------------------
+All files                   |   11.81 |     3.96 |    5.65 |   12.59 |                                                       
+ src                        |   10.45 |     5.13 |    6.66 |   11.12 |                                                       
+  HtmlDocument.ts           |       0 |        0 |       0 |       0 | 9-104                                                 
+  HtmlPage.ts               |    6.97 |     12.5 |    12.5 |    6.97 | 21-115                                                
+  decodeTextControl.ts      |       4 |        0 |       0 |       4 | 63-121                                                
+  devLog.ts                 |       0 |        0 |       0 |       0 | 2-25                                                  
+  htmlParserWorkerClient.ts |    2.77 |        0 |       0 |    3.22 | 26-102                                                
+  htmlParserWorkerCore.ts   |       0 |        0 |       0 |       0 | 55-268                                                
+  index.ts                  |     1.9 |        0 |    0.84 |    2.08 | 69-107,119,123-451,457-531,595-984,996-1993,2015-2183 
+  intermediateTextGuard.ts  |       0 |        0 |       0 |       0 | 16-34                                                 
+  pageThumbnailDom.ts       |   70.54 |    53.73 |      80 |   73.94 | 64,69-70,131,206,218,239-250,253-254,263-295          
+  textCssStyle.ts           |   27.27 |        0 |       0 |   31.57 | 11-13,17-18,22-23,30-51,57,62                         
+  textGeometry.ts           |   10.52 |        0 |       0 |   10.52 | 12-24,28-40,44-56,60-72                               
+  textMeasurement.ts        |   19.44 |        0 |       0 |   19.44 | 30-48,55,59,71-75,84-103                              
+  textStyle.ts              |   11.86 |        0 |       0 |   12.96 | 37-41,47-60,67-68,79-94,98-170                        
+ src/mock                   |   41.66 |        0 |       0 |   41.66 |                                                       
+  constants.ts              |     100 |      100 |     100 |     100 |                                                       
+  errors.ts                 |    12.5 |        0 |       0 |    12.5 | 7-8,13-21                                             
+ src/mock/api               |   17.14 |        0 |       0 |   17.64 |                                                       
+  coverageReportApi.ts      |      20 |      100 |       0 |      20 | 9-13                                                  
+  mockConfigApi.ts          |   19.04 |        0 |       0 |      20 | 24-28,40-44,51-71                                     
+  mockDatasetApi.ts         |   11.11 |        0 |       0 |   11.11 | 14-24                                                 
+ src/mock/generation        |   11.02 |        0 |       0 |      12 |                                                       
+  datasetBuilder.ts         |    8.33 |        0 |       0 |    9.37 | 11-14,23,35-74                                        
+  determinism.ts            |   11.76 |        0 |       0 |    12.5 | 11,17-39                                              
+  fieldValueGenerator.ts    |   13.11 |        0 |       0 |   14.03 | 8-13,19-21,27-29,36-63,71-92,97-117                   
+  prng.ts                   |    9.09 |        0 |       0 |      10 | 2-7,17-34                                             
+ src/mock/services          |   17.02 |        0 |       0 |   17.77 |                                                       
+  coverageReportService.ts  |   13.33 |        0 |       0 |   13.33 | 13-31,42-67                                           
+  mockConfigService.ts      |      20 |        0 |       0 |   21.05 | 17-29,35-39,45-50                                     
+  mockDatasetService.ts     |   16.66 |        0 |       0 |   18.18 | 18-31                                                 
+ src/mock/store             |   57.14 |      100 |      20 |   57.14 |                                                       
+  mockStores.ts             |   57.14 |      100 |      20 |   57.14 | 13-16,26-28                                           
+ src/mock/validators        |   11.39 |        0 |       0 |   12.85 |                                                       
+  configValidator.ts        |   12.96 |        0 |       0 |   14.28 | 15-40,44-45,51,60,66-87,94-119,124                    
+  constraintValidator.ts    |       8 |        0 |       0 |    9.52 | 4-7,13-62                                             
+ src/mock/versioning        |   17.64 |        0 |       0 |   18.75 |                                                       
+  configVersioning.ts       |   17.64 |        0 |       0 |   18.75 | 4-9,13-20,24-30                                       
+ src/testUtils              |   21.62 |        0 |    9.09 |   21.62 |                                                       
+  domTestUtils.ts           |    42.1 |        0 |   33.33 |    42.1 | 7-11,33-43                                            
+  html2canvasTestUtils.ts   |       0 |        0 |       0 |       0 | 31-64                                                 
+----------------------------|---------|----------|---------|---------|-------------------------------------------------------
+Test Suites: 1 passed, 1 total
+Tests:       31 skipped, 1 passed, 32 total
+Snapshots:   0 total
+Time:        2.203 s, estimated 4 s
+Ran all test suites matching src/__tests__/renderer.test.ts with tests matching "captures background-color".

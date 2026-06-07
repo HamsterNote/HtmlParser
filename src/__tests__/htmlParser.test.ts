@@ -1,5 +1,6 @@
 import {
   IntermediateDocument,
+  IntermediateImage,
   IntermediatePage,
   IntermediatePageMap,
   IntermediateText,
@@ -9,6 +10,7 @@ import { HtmlDocument } from '../HtmlDocument.js'
 import { HtmlParser, setHtml2CanvasLoader } from '../index'
 import { withDomDocument, withGlobalsRemoved } from '../testUtils/domTestUtils.js'
 import { installFakeHtml2Canvas } from '../testUtils/html2canvasTestUtils.js'
+import { computeTargetHeight, computeTargetWidth } from '../textGeometry.js'
 import { resetPretextAdapter, setPretextAdapter } from '../textMeasurement.js'
 
 const exposeGlobalDocument = (document: Document): (() => void) => {
@@ -1527,6 +1529,363 @@ describe('HtmlParser', () => {
     })
   })
 
+  describe('HtmlParser.encode excludeSelectors', () => {
+    const encodeHtml = (html: string, options?: Parameters<typeof HtmlParser.encode>[1]) =>
+      HtmlParser.encode(new TextEncoder().encode(html).buffer, options)
+
+    const readContent = async (doc: HtmlDocument) => {
+      const pages = await doc.getIntermediateDocument().pages
+      const content = await pages[0].getContent()
+      return { pages, content }
+    }
+
+    const readTextAndImages = async (doc: HtmlDocument) => {
+      const { pages, content } = await readContent(doc)
+      const texts = content.filter(
+        (item): item is IntermediateText => item instanceof IntermediateText
+      )
+      const images = content.filter(
+        (item): item is IntermediateImage => item instanceof IntermediateImage
+      )
+      return { pages, content, texts, images }
+    }
+
+    it('removes matching subtree text and images', async () => {
+      await withDomDocument(async () => {
+        const html = '<div class="keep">Keep me</div><div class="exclude"><p>Drop</p><img src="data:image/png;base64,iVBORw0KGgo=" /></div>'
+        const doc = await encodeHtml(html, { excludeSelectors: ['.exclude'] })
+        const { texts, images } = await readTextAndImages(doc)
+
+        expect(texts.map((text) => text.content)).toEqual(['Keep me'])
+        expect(texts.some((text) => text.content.includes('Drop'))).toBe(false)
+        expect(images).toHaveLength(0)
+      })
+    })
+
+    it('treats empty/undefined as no-op', async () => {
+      await withDomDocument(async () => {
+        const originalDateNow = Date.now
+        Date.now = () => 2026060702
+        const html = '<div class="keep">Keep me</div><div class="exclude"><p>Drop</p><img src="data:image/png;base64,iVBORw0KGgo=" /></div>'
+
+        try {
+          const baseline = await readContent(await encodeHtml(html))
+          const withEmptyObject = await readContent(await encodeHtml(html, {}))
+          const withEmptySelectors = await readContent(await encodeHtml(html, { excludeSelectors: [] }))
+          const summarize = ({ content }: Awaited<ReturnType<typeof readContent>>) =>
+            content.map((item) => ({
+              id: item.id,
+              kind: item instanceof IntermediateImage ? 'image' : 'text',
+              content: item instanceof IntermediateText ? item.content : undefined,
+              src: item instanceof IntermediateImage ? item.src : undefined
+            }))
+
+          expect(withEmptyObject.content).toHaveLength(baseline.content.length)
+          expect(withEmptySelectors.content).toHaveLength(baseline.content.length)
+          expect(summarize(withEmptyObject)).toEqual(summarize(baseline))
+          expect(summarize(withEmptySelectors)).toEqual(summarize(baseline))
+        } finally {
+          Date.now = originalDateNow
+        }
+      })
+    })
+
+    it('treats zero-match selectors as no-op', async () => {
+      await withDomDocument(async () => {
+        const originalDateNow = Date.now
+        Date.now = () => 2026060708
+        const html = '<main><p>Keep text</p><img src="data:image/png;base64,KEEP" /></main>'
+
+        try {
+          const baseline = await readTextAndImages(await encodeHtml(html))
+          const zeroMatch = await readTextAndImages(await encodeHtml(html, {
+            excludeSelectors: ['.does-not-exist']
+          }))
+
+          expect(zeroMatch.texts.map((text) => text.content)).toEqual(
+            baseline.texts.map((text) => text.content)
+          )
+          expect(zeroMatch.images.map((image) => image.src)).toEqual(
+            baseline.images.map((image) => image.src)
+          )
+          expect(zeroMatch.content).toHaveLength(baseline.content.length)
+        } finally {
+          Date.now = originalDateNow
+        }
+      })
+    })
+
+    it('excluding body yields empty content but valid document', async () => {
+      await withDomDocument(async () => {
+        const html = '<div class="keep">Keep me</div><p>Drop me too</p>'
+        const doc = await encodeHtml(html, { excludeSelectors: ['body'] })
+        const { pages, content } = await readContent(doc)
+
+        expect(pages.length).toBeGreaterThanOrEqual(1)
+        expect(pages[0].width).toBe(800)
+        expect(pages[0].height).toBeGreaterThan(0)
+        expect(content).toHaveLength(0)
+      })
+    })
+
+    it('rejects invalid selector with deterministic error', async () => {
+      await withDomDocument(async () => {
+        const html = '<div>Keep me</div>'
+        await expect(encodeHtml(html, { excludeSelectors: ['<<<bad'] })).rejects.toThrow(
+          /^Invalid exclude selector: <<<bad/
+        )
+      })
+    })
+
+    it('multiple selectors combine via OR', async () => {
+      await withDomDocument(async () => {
+        const html = '<div class="a">A</div><div class="b">B</div><div class="c">C</div>'
+        const doc = await encodeHtml(html, { excludeSelectors: ['.a', '.c'] })
+        const { texts } = await readTextAndImages(doc)
+
+        expect(texts.map((text) => text.content)).toEqual(['B'])
+      })
+    })
+
+    it('deduplicates behavior for overlapping selectors matching the same element', async () => {
+      await withDomDocument(async () => {
+        const html = [
+          '<section>',
+          '  <div class="a b"><p>Drop once</p><img src="data:image/png;base64,DROP" /></div>',
+          '  <p class="keep">Keep once</p>',
+          '</section>'
+        ].join('')
+        const doc = await encodeHtml(html, { excludeSelectors: ['.a', '.a.b'] })
+        const { texts, images } = await readTextAndImages(doc)
+
+        expect(texts.map((text) => text.content)).toEqual(['Keep once'])
+        expect(texts.some((text) => text.content.includes('Drop once'))).toBe(false)
+        expect(images).toHaveLength(0)
+      })
+    })
+  })
+
+  describe('HtmlParser.encode mixed content order', () => {
+    type OrderedItem<T extends object> = T & { sourceOrder: number }
+    type CollectImagesForMixedTest = (
+      doc: Document,
+      id: string,
+      excludeMatcher?: (el: Element) => boolean
+    ) => Promise<IntermediateImage[]>
+    type CollectTextsForMixedTest = (
+      doc: Document,
+      id: string,
+      excludeMatcher?: (el: Element) => boolean
+    ) => Promise<{
+      title: string
+      texts: IntermediateText[]
+      images: IntermediateImage[]
+      pageWidth: number
+      pageHeight: number
+    }>
+    type ImageToDataUrlForMixedTest = (img: HTMLImageElement) => Promise<string>
+
+    const withSourceOrder = <T extends object>(item: T, sourceOrder: number): OrderedItem<T> =>
+      Object.assign(item, { sourceOrder })
+
+    const makeText = (id: string, content: string, sourceOrder: number): OrderedItem<IntermediateText> =>
+      withSourceOrder(new IntermediateText({
+        id,
+        content,
+        fontSize: 16,
+        fontFamily: 'Inter',
+        fontWeight: 400,
+        italic: false,
+        color: '#111111',
+        polygon: [[0, sourceOrder * 20], [80, sourceOrder * 20], [80, sourceOrder * 20 + 18], [0, sourceOrder * 20 + 18]],
+        lineHeight: 20,
+        ascent: 13,
+        descent: 5,
+        vertical: false,
+        dir: TextDir.LTR,
+        skew: 0,
+        isEOL: true
+      }), sourceOrder)
+
+    const makeImage = (id: string, src: string, sourceOrder: number): OrderedItem<IntermediateImage> =>
+      withSourceOrder(new IntermediateImage({
+        id,
+        src,
+        polygon: [[0, sourceOrder * 20], [32, sourceOrder * 20], [32, sourceOrder * 20 + 16], [0, sourceOrder * 20 + 16]],
+        opacity: 1
+      }), sourceOrder)
+
+    const readFirstPageContent = async (doc: HtmlDocument) => {
+      const pages = await doc.getIntermediateDocument().pages
+      const content = await pages[0].getContent()
+      return { page: pages[0], content }
+    }
+
+    const setRect = (element: Element, rect: DOMRect): void => {
+      element.getBoundingClientRect = (() => rect) as typeof element.getBoundingClientRect
+    }
+
+    it('emits text and images in DOM order', async () => {
+      await withDomDocument(async () => {
+        const parserRef = HtmlParser as unknown as {
+          collectTextsFromDocument: CollectTextsForMixedTest
+        }
+        const originalCollectTexts = parserRef.collectTextsFromDocument
+
+        parserRef.collectTextsFromDocument = async () => ({
+          title: 'Mixed DOM Order',
+          texts: [
+            makeText('mixed-text-0', 'Alpha', 0),
+            makeText('mixed-text-2', 'Beta', 2),
+            makeText('mixed-text-4', 'Gamma', 4)
+          ],
+          images: [
+            makeImage('mixed-image-1', 'data:image/png;base64,ONE', 1),
+            makeImage('mixed-image-3', 'data:image/png;base64,TWO', 3)
+          ],
+          pageWidth: 800,
+          pageHeight: 120
+        })
+
+        try {
+          const doc = await HtmlParser.encode(new TextEncoder().encode('<p>fixture</p>').buffer)
+          const { page, content } = await readFirstPageContent(doc)
+          const summary = content.map((item) => {
+            if (item instanceof IntermediateImage) {
+              return { kind: 'image', id: item.id, src: item.src }
+            }
+
+            return { kind: 'text', id: item.id, content: item.content }
+          })
+
+          expect(content).toHaveLength(5)
+          expect(summary).toEqual([
+            { kind: 'text', id: 'mixed-text-0', content: 'Alpha' },
+            { kind: 'image', id: 'mixed-image-1', src: 'data:image/png;base64,ONE' },
+            { kind: 'text', id: 'mixed-text-2', content: 'Beta' },
+            { kind: 'image', id: 'mixed-image-3', src: 'data:image/png;base64,TWO' },
+            { kind: 'text', id: 'mixed-text-4', content: 'Gamma' }
+          ])
+
+          const images = content.filter(
+            (item): item is IntermediateImage => item instanceof IntermediateImage
+          )
+          expect(images[0]).toMatchObject({
+            id: 'mixed-image-1',
+            src: 'data:image/png;base64,ONE',
+            polygon: [[0, 20], [32, 20], [32, 36], [0, 36]],
+            opacity: 1
+          })
+          expect(images[1]).toMatchObject({
+            id: 'mixed-image-3',
+            src: 'data:image/png;base64,TWO',
+            polygon: [[0, 60], [32, 60], [32, 76], [0, 76]],
+            opacity: 1
+          })
+          expect(IntermediatePage.serialize(page).content?.some((item) => 'sourceOrder' in item)).toBe(false)
+        } finally {
+          parserRef.collectTextsFromDocument = originalCollectTexts
+        }
+      })
+    })
+
+    it('preserves original src when canvas conversion fails', async () => {
+      await withDomDocument(async ({ document, DOMRect }) => {
+        const parserRef = HtmlParser as unknown as {
+          collectImagesFromDocument: CollectImagesForMixedTest
+          imageToDataUrl: ImageToDataUrlForMixedTest
+        }
+        const originalImageToDataUrl = parserRef.imageToDataUrl
+        const conversionAttempts: string[] = []
+
+        document.body.innerHTML = '<img id="fallback-image" src="/assets/fail.png" />'
+        setRect(document.body, new DOMRect(0, 0, 800, 600))
+        const img = document.querySelector('#fallback-image')
+        if (!img) throw new Error('expected fixture image')
+        setRect(img, new DOMRect(12, 34, 56, 78))
+        parserRef.imageToDataUrl = async (image) => {
+          conversionAttempts.push(image.getAttribute('src') ?? '')
+          throw new Error('canvas conversion failed')
+        }
+
+        try {
+          const images = await parserRef.collectImagesFromDocument(document, 'fallback-src')
+          expect(conversionAttempts).toEqual(['/assets/fail.png'])
+          expect(images).toHaveLength(1)
+          expect(images[0]).toMatchObject({
+            id: 'fallback-src-page-1-image-0',
+            src: '/assets/fail.png',
+            polygon: [[12, 34], [68, 34], [68, 112], [12, 112]],
+            opacity: 1
+          })
+        } finally {
+          parserRef.imageToDataUrl = originalImageToDataUrl
+        }
+      })
+    })
+
+    it('skips display:none and 0x0 images', async () => {
+      await withDomDocument(async ({ document, DOMRect }) => {
+        const parserRef = HtmlParser as unknown as {
+          collectImagesFromDocument: CollectImagesForMixedTest
+        }
+
+        document.body.innerHTML = [
+          '<img id="hidden-image" style="display:none" src="data:image/png;base64,HIDDEN" />',
+          '<img id="zero-image" src="data:image/png;base64,ZERO" />',
+          '<img id="visible-image" src="data:image/png;base64,VISIBLE" />'
+        ].join('')
+        setRect(document.body, new DOMRect(0, 0, 800, 600))
+
+        const hidden = document.querySelector('#hidden-image')
+        const zero = document.querySelector('#zero-image')
+        const visible = document.querySelector('#visible-image')
+        if (!hidden || !zero || !visible) throw new Error('expected fixture images')
+        setRect(hidden, new DOMRect(0, 0, 0, 0))
+        setRect(zero, new DOMRect(20, 20, 0, 0))
+        setRect(visible, new DOMRect(40, 50, 60, 70))
+
+        const images = await parserRef.collectImagesFromDocument(document, 'skip-images')
+        expect(images).toHaveLength(1)
+        expect(images[0]?.src).toBe('data:image/png;base64,VISIBLE')
+        expect(images[0]?.polygon).toEqual([[40, 50], [100, 50], [100, 120], [40, 120]])
+      })
+    })
+
+    it('keeps data url images unchanged', async () => {
+      await withDomDocument(async ({ document, DOMRect }) => {
+        const parserRef = HtmlParser as unknown as {
+          collectImagesFromDocument: CollectImagesForMixedTest
+          imageToDataUrl: ImageToDataUrlForMixedTest
+        }
+        const originalImageToDataUrl = parserRef.imageToDataUrl
+        const dataUrl = 'data:image/png;base64,UNCHANGED'
+
+        document.body.innerHTML = `<img id="data-image" src="${dataUrl}" />`
+        setRect(document.body, new DOMRect(0, 0, 800, 600))
+        const img = document.querySelector('#data-image')
+        if (!img) throw new Error('expected data image')
+        setRect(img, new DOMRect(5, 6, 7, 8))
+        parserRef.imageToDataUrl = async () => {
+          throw new Error('data url image should not be converted')
+        }
+
+        try {
+          const images = await parserRef.collectImagesFromDocument(document, 'data-url')
+          expect(images).toHaveLength(1)
+          expect(images[0]).toMatchObject({
+            id: 'data-url-page-1-image-0',
+            src: dataUrl,
+            polygon: [[5, 6], [12, 6], [12, 14], [5, 14]],
+            opacity: 1
+          })
+        } finally {
+          parserRef.imageToDataUrl = originalImageToDataUrl
+        }
+      })
+    })
+  })
+
   describe('HtmlDocument.getCover', () => {
     const installFakeImage = (ImageClass: typeof Image) => {
       const originalImageDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'Image')
@@ -1658,5 +2017,182 @@ describe('HtmlParser', () => {
         }
       })
     })
+  })
+})
+
+type Task1StyleProbeExpectation = {
+  cssName: string
+  prop: string
+  expected: string
+}
+
+const task1ReadStyleValue = (
+  style: CSSStyleDeclaration,
+  prop: string
+): string => {
+  const value = (style as unknown as Record<string, unknown>)[prop]
+  return typeof value === 'string' ? value : ''
+}
+
+const task1StyleProbeStyle = [
+  'background-color: rgb(1, 2, 3)',
+  'border-top: 1px solid rgb(10, 20, 30)',
+  'border-right: 2px dashed rgb(40, 50, 60)',
+  'border-bottom: 3px dotted rgb(70, 80, 90)',
+  'border-left: 4px double rgb(100, 110, 120)',
+  'border-radius: 5px 6px 7px 8px',
+  'box-shadow: 1px 2px 3px rgb(9, 8, 7)',
+  'outline: 9px solid rgb(11, 22, 33)'
+].join('; ')
+
+const task1StyleProbeExpectations: Task1StyleProbeExpectation[] = [
+  { cssName: 'background-color', prop: 'backgroundColor', expected: 'rgb(1, 2, 3)' },
+  { cssName: 'border-top-width', prop: 'borderTopWidth', expected: '1px' },
+  { cssName: 'border-top-style', prop: 'borderTopStyle', expected: 'solid' },
+  { cssName: 'border-top-color', prop: 'borderTopColor', expected: 'rgb(10, 20, 30)' },
+  { cssName: 'border-right-width', prop: 'borderRightWidth', expected: '2px' },
+  { cssName: 'border-right-style', prop: 'borderRightStyle', expected: 'dashed' },
+  { cssName: 'border-right-color', prop: 'borderRightColor', expected: 'rgb(40, 50, 60)' },
+  { cssName: 'border-bottom-width', prop: 'borderBottomWidth', expected: '3px' },
+  { cssName: 'border-bottom-style', prop: 'borderBottomStyle', expected: 'dotted' },
+  { cssName: 'border-bottom-color', prop: 'borderBottomColor', expected: 'rgb(70, 80, 90)' },
+  { cssName: 'border-left-width', prop: 'borderLeftWidth', expected: '4px' },
+  { cssName: 'border-left-style', prop: 'borderLeftStyle', expected: 'double' },
+  { cssName: 'border-left-color', prop: 'borderLeftColor', expected: 'rgb(100, 110, 120)' },
+  { cssName: 'border-top-left-radius', prop: 'borderTopLeftRadius', expected: '5px' },
+  { cssName: 'border-top-right-radius', prop: 'borderTopRightRadius', expected: '6px' },
+  { cssName: 'border-bottom-right-radius', prop: 'borderBottomRightRadius', expected: '7px' },
+  { cssName: 'border-bottom-left-radius', prop: 'borderBottomLeftRadius', expected: '8px' },
+  { cssName: 'border-radius', prop: 'borderRadius', expected: '5px 6px 7px 8px' },
+  { cssName: 'box-shadow', prop: 'boxShadow', expected: '1px 2px 3px rgb(9, 8, 7)' },
+  { cssName: 'outline-width', prop: 'outlineWidth', expected: '9px' },
+  { cssName: 'outline-style', prop: 'outlineStyle', expected: 'solid' },
+  { cssName: 'outline-color', prop: 'outlineColor', expected: 'rgb(11, 22, 33)' }
+]
+
+describe('Task 1 computed style whitelist assumption probe', () => {
+  it('documents happy-dom retrieval support for whitelisted inline styles', async () => {
+    await withDomDocument(async ({ document }) => {
+      const defaultView = document.defaultView
+      if (!defaultView) throw new Error('expected defaultView to exist in test document')
+
+      const el = document.createElement('div')
+      el.setAttribute('style', task1StyleProbeStyle)
+      document.body.appendChild(el)
+
+      // 探针：验证 happy-dom 能否读取背景样式白名单中的 computed style 与 inline style。
+      const computed = defaultView.getComputedStyle(el)
+      const observed = task1StyleProbeExpectations.map(({ cssName, prop, expected }) => {
+        const computedValue = task1ReadStyleValue(computed, prop)
+        const inlineValue = task1ReadStyleValue(el.style, prop)
+
+        return {
+          cssName,
+          computedReadable: computedValue === expected,
+          computedValue,
+          inlineReadable: inlineValue === expected,
+          inlineValue
+        }
+      })
+
+      expect(observed).toEqual(
+        task1StyleProbeExpectations.map(({ cssName, expected }) => ({
+          cssName,
+          computedReadable: true,
+          computedValue: expected,
+          inlineReadable: true,
+          inlineValue: expected
+        }))
+      )
+    })
+  })
+})
+
+type Task1Polygon = ReadonlyArray<Readonly<[number, number]>>
+
+const task1PolygonBounds = (polygon: Task1Polygon) => {
+  const xs = polygon.map(([x]) => x)
+  const ys = polygon.map(([, y]) => y)
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys)
+  }
+}
+
+const task1FitsPage = (
+  polygon: Task1Polygon,
+  page: { width: number; height: number }
+): boolean => {
+  const bounds = task1PolygonBounds(polygon)
+  return (
+    bounds.minX >= 0 &&
+    bounds.minY >= 0 &&
+    bounds.maxX <= page.width &&
+    bounds.maxY <= page.height
+  )
+}
+
+describe('Task 1 polygon coordinate alignment assumption probe', () => {
+  it('documents IntermediateImage and IntermediateText sharing page coordinates', () => {
+    const page = { width: 800, height: 1024 }
+    const imagePolygon = [
+      [10, 20],
+      [110, 20],
+      [110, 80],
+      [10, 80]
+    ] satisfies IntermediateImage['polygon']
+    const textPolygon = [
+      [120, 30],
+      [220, 30],
+      [220, 70],
+      [120, 70]
+    ] satisfies IntermediateText['polygon']
+
+    const image = new IntermediateImage({
+      id: 'task-1-image',
+      src: 'data:image/png;base64,TASK1',
+      polygon: imagePolygon,
+      opacity: 1
+    })
+    const text = new IntermediateText({
+      id: 'task-1-text',
+      content: 'Task 1 text',
+      fontSize: 16,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      italic: false,
+      color: '#111111',
+      polygon: textPolygon,
+      lineHeight: 20,
+      ascent: 12,
+      descent: 4,
+      vertical: false,
+      dir: TextDir.LTR,
+      skew: 0,
+      isEOL: true
+    })
+
+    // 探针：图片和文字 polygon 都以页面左上角为原点，并落在同一页尺寸内。
+    expect(task1PolygonBounds(image.polygon)).toEqual({
+      minX: 10,
+      minY: 20,
+      maxX: 110,
+      maxY: 80
+    })
+    expect(task1PolygonBounds(text.polygon)).toEqual({
+      minX: 120,
+      minY: 30,
+      maxX: 220,
+      maxY: 70
+    })
+    expect(task1FitsPage(image.polygon, page)).toBe(true)
+    expect(task1FitsPage(text.polygon, page)).toBe(true)
+    expect(computeTargetWidth(image.polygon)).toBe(100)
+    expect(computeTargetHeight(image.polygon)).toBe(60)
+    expect(computeTargetWidth(text.polygon)).toBe(100)
+    expect(computeTargetHeight(text.polygon)).toBe(40)
   })
 })

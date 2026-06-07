@@ -66,7 +66,7 @@ def test_demo_page_contains_sample_image(demo_page: Page) -> None:
     image = demo_page.locator('.sample-image img')
     expect(image).to_have_count(1)
     expect(image).to_have_attribute('src', './assets/test.png')
-    expect(image).to_have_attribute('alt', 'test image')
+    expect(image).to_have_attribute('alt', 'test sample')
 
 
 @pytest.mark.e2e

@@ -12,11 +12,199 @@ export interface OffscreenPageInput extends Pick<IntermediatePage, 'width' | 'he
 
 export interface BuildOffscreenPageElementOptions {
   excludeTextFromBackground?: boolean
+  /** 原始 HTML 所在的 Document，仅在排除背景文本时用于捕获视觉容器样式 */
+  sourceDoc?: Document
+  /** 已在源 DOM 生命周期内捕获好的视觉容器模型 */
+  styleContainers?: readonly WhitelistedStyleContainerModel[]
 }
 
 export interface OffscreenPageHandle {
   element: HTMLElement
   cleanup: () => void
+}
+
+export interface WhitelistedStyleContainerModel {
+  left: number
+  top: number
+  width: number
+  height: number
+  styles: Record<string, string>
+}
+
+const STYLE_CONTAINER_CLASS = 'hamster-note-visual-container'
+const ELEMENT_NODE_FILTER = 1
+const BORDER_SIDES = ['top', 'right', 'bottom', 'left'] as const
+const BORDER_RADIUS_CORNERS = [
+  'top-left',
+  'top-right',
+  'bottom-right',
+  'bottom-left'
+] as const
+
+function readCss(style: CSSStyleDeclaration, property: string): string {
+  return style.getPropertyValue(property).trim()
+}
+
+function isZeroCssLength(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === '') return true
+  if (normalized === '0') return true
+  return /^0(?:\.0+)?(?:px|em|rem|%|pt)?$/.test(normalized)
+}
+
+function isTransparentColor(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === '' || normalized === 'transparent') return true
+
+  const compact = normalized.replace(/\s+/g, '')
+  if (compact === 'rgba(0,0,0,0)') return true
+
+  const rgbaMatch = compact.match(/^rgba\([^,]+,[^,]+,[^,]+,([^,)]+)\)$/)
+  if (rgbaMatch) {
+    return Number.parseFloat(rgbaMatch[1] ?? '1') === 0
+  }
+
+  const slashAlphaMatch = compact.match(/^rgb\([^/]+\/([^/)]+)\)$/)
+  if (slashAlphaMatch) {
+    const alpha = slashAlphaMatch[1] ?? '1'
+    return alpha === '0' || alpha === '0%'
+  }
+
+  return false
+}
+
+function isVisibleLineStyle(style: string): boolean {
+  const normalized = style.trim().toLowerCase()
+  return normalized !== '' && normalized !== 'none' && normalized !== 'hidden'
+}
+
+function collectWhitelistedStyles(computedStyle: CSSStyleDeclaration): Record<string, string> {
+  const styles: Record<string, string> = {}
+  const backgroundColor = readCss(computedStyle, 'background-color')
+
+  if (!isTransparentColor(backgroundColor)) {
+    styles['background-color'] = backgroundColor
+  }
+
+  for (const side of BORDER_SIDES) {
+    const widthProperty = `border-${side}-width`
+    const styleProperty = `border-${side}-style`
+    const colorProperty = `border-${side}-color`
+    const borderWidth = readCss(computedStyle, widthProperty)
+    const borderStyle = readCss(computedStyle, styleProperty)
+
+    // 边框只有在线型可见且宽度非 0 时才有可绘制内容。
+    if (!isZeroCssLength(borderWidth) && isVisibleLineStyle(borderStyle)) {
+      styles[widthProperty] = borderWidth
+      styles[styleProperty] = borderStyle
+      styles[colorProperty] = readCss(computedStyle, colorProperty)
+    }
+  }
+
+  for (const corner of BORDER_RADIUS_CORNERS) {
+    const property = `border-${corner}-radius`
+    const value = readCss(computedStyle, property)
+    if (!isZeroCssLength(value)) {
+      styles[property] = value
+    }
+  }
+
+  const boxShadow = readCss(computedStyle, 'box-shadow')
+  if (boxShadow !== '' && boxShadow.toLowerCase() !== 'none') {
+    styles['box-shadow'] = boxShadow
+  }
+
+  const outlineWidth = readCss(computedStyle, 'outline-width')
+  const outlineStyle = readCss(computedStyle, 'outline-style')
+  if (!isZeroCssLength(outlineWidth) && isVisibleLineStyle(outlineStyle)) {
+    styles['outline-width'] = outlineWidth
+    styles['outline-style'] = outlineStyle
+    styles['outline-color'] = readCss(computedStyle, 'outline-color')
+  }
+
+  return styles
+}
+
+function getSourceComputedStyle(sourceDoc: Document, element: Element): CSSStyleDeclaration {
+  const sourceWindow = sourceDoc.defaultView
+  if (sourceWindow) return sourceWindow.getComputedStyle(element)
+  return globalThis.getComputedStyle(element)
+}
+
+export function captureWhitelistedStyleContainerModels(
+  sourceDoc: Document
+): WhitelistedStyleContainerModel[] {
+  const body = sourceDoc.body
+  if (!body) return []
+
+  const treeWalker = sourceDoc.createTreeWalker(body, ELEMENT_NODE_FILTER)
+  const containers: WhitelistedStyleContainerModel[] = []
+
+  for (let node = treeWalker.nextNode(); node; node = treeWalker.nextNode()) {
+    const element = node as Element
+    const rect = element.getBoundingClientRect()
+
+    // 0 尺寸元素不会被 html2canvas 绘制，提前跳过减少无效 DOM。
+    if (rect.width <= 0 || rect.height <= 0) continue
+
+    const styles = collectWhitelistedStyles(
+      getSourceComputedStyle(sourceDoc, element)
+    )
+
+    if (Object.keys(styles).length === 0) continue
+
+    containers.push({
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      styles
+    })
+  }
+
+  return containers
+}
+
+function appendWhitelistedStyleContainer(
+  page: HTMLElement,
+  doc: Document,
+  model: WhitelistedStyleContainerModel
+): HTMLElement {
+  const container = doc.createElement('div')
+  container.className = STYLE_CONTAINER_CLASS
+
+  Object.assign(container.style, {
+    position: 'absolute',
+    left: `${model.left}px`,
+    top: `${model.top}px`,
+    width: `${model.width}px`,
+    height: `${model.height}px`,
+    pointerEvents: 'none',
+    boxSizing: 'border-box',
+    zIndex: '0'
+  })
+
+  for (const [property, value] of Object.entries(model.styles)) {
+    container.style.setProperty(property, value)
+  }
+
+  page.appendChild(container)
+  return container
+}
+
+export function captureWhitelistedStyleContainers(
+  sourceDoc: Document,
+  page: HTMLElement,
+  doc: Document
+): HTMLElement[] {
+  try {
+    return captureWhitelistedStyleContainerModels(sourceDoc).map((model) =>
+      appendWhitelistedStyleContainer(page, doc, model)
+    )
+  } catch {
+    // 背景样式捕获是增强路径；源 DOM 遍历失败时保持旧缩略图行为。
+    return []
+  }
 }
 
 export function buildOffscreenPageElement(
@@ -61,6 +249,12 @@ export function buildOffscreenPageElement(
 
       wrapper.appendChild(span)
     })
+  } else if (options.styleContainers) {
+    options.styleContainers.forEach((model) => {
+      appendWhitelistedStyleContainer(wrapper, doc, model)
+    })
+  } else if (options.sourceDoc) {
+    captureWhitelistedStyleContainers(options.sourceDoc, wrapper, doc)
   }
 
   // 渲染图片元素——始终渲染，不受 excludeTextFromBackground 影响

@@ -11,6 +11,7 @@ const decodeInputButton = document.querySelector('[data-action="decode-input"]')
 const toggleOutputButton = document.querySelector('[data-action="toggle-output"]')
 const output = document.querySelector('[data-role="output"]')
 const jsonInput = document.querySelector('[data-role="json-input"]')
+const excludeSelectorsInput = document.querySelector('[data-role="exclude-selectors"]')
 const textControlInput = document.querySelector('[data-role="text-control-input"]')
 const status = document.querySelector('[data-role="status"]')
 const preview = document.querySelector('[data-role="preview"]')
@@ -36,6 +37,35 @@ const setPreviewNote = (text, isError = false) => {
   previewNote.classList.toggle('is-error', isError)
 }
 
+const parseExcludeSelectors = () => {
+  const rawValue = excludeSelectorsInput?.value?.trim() ?? ''
+
+  // 空输入代表不启用 excludeSelectors，保留旧版 demo 的完整页面编码行为。
+  if (!rawValue) {
+    return undefined
+  }
+
+  let parsed
+  try {
+    parsed = JSON.parse(rawValue)
+  } catch {
+    throw new Error('Encode exclude selectors must be a JSON array of strings.')
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error('Encode exclude selectors must be a JSON array of strings.')
+  }
+
+  const selectors = parsed.map((selector) => {
+    if (typeof selector !== 'string') {
+      throw new Error('Encode exclude selectors must be a JSON array of strings.')
+    }
+    return selector.trim()
+  }).filter(Boolean)
+
+  return selectors.length > 0 ? selectors : undefined
+}
+
 const handleParse = async () => {
   if (!output) return
 
@@ -54,7 +84,12 @@ const handleParse = async () => {
       ? html.replace('<head>', `<head>${baseTag}`)
       : `${baseTag}${html}`
     const buffer = new TextEncoder().encode(htmlWithBase).buffer
-    const doc = await HtmlParser.encode(buffer)
+    const excludeSelectors = parseExcludeSelectors()
+    // 默认值写在 encode.html，使用“反选”方式排除 demo chrome/control 区，
+    // 让默认 Parse 输出稳定聚焦在 #sample-content，便于观察样式背景与图文混排。
+    const doc = excludeSelectors
+      ? await HtmlParser.encode(buffer, { excludeSelectors })
+      : await HtmlParser.encode(buffer)
     const intermediate = doc.getIntermediateDocument()
     const serialized = await serializeIntermediate(intermediate)
     output.textContent = JSON.stringify(serialized, null, 2)
@@ -78,7 +113,7 @@ const handleDecode = async () => {
 
   try {
     const rawText = output.textContent?.trim() ?? ''
-    if (!rawText || !rawText.startsWith('{')) {
+    if (!rawText.startsWith('{')) {
       throw new Error('JSON output is not available. Run "Parse current page".')
     }
     const data = JSON.parse(rawText)
@@ -127,7 +162,7 @@ const handleDecodeInput = async () => {
 
   try {
     const rawText = jsonInput.value?.trim() ?? ''
-    if (!rawText || !rawText.startsWith('{')) {
+    if (!rawText.startsWith('{')) {
       throw new Error('Please enter valid JSON in the input area above.')
     }
     const data = JSON.parse(rawText)

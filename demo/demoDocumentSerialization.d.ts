@@ -1,18 +1,23 @@
 type SerializedOutlineItem = Record<string, unknown>
 
 type SerializedText = Record<string, unknown>
+type SerializedImage = Record<string, unknown>
+type SerializedContent = SerializedText | SerializedImage
 
 type SerializedPage = {
   id: string
   number: number
   width: number
   height: number
-  texts: SerializedText[]
+  texts?: SerializedText[]
+  images?: SerializedImage[]
+  content?: SerializedContent[]
   thumbnail?: string
 }
 
 type ParsedSerializedPage = SerializedPage & {
   getTexts(): Promise<SerializedText[]>
+  getContent(): Promise<SerializedContent[]>
   getThumbnail(scale?: number): Promise<string | undefined>
 }
 
@@ -20,6 +25,8 @@ export type SerializedIntermediateDocument = {
   id: string
   title: string
   outline: SerializedOutlineItem[]
+  textControl?: unknown
+  background?: Record<string, unknown>
   pages: SerializedPage[]
 }
 
@@ -32,8 +39,11 @@ export declare function serializeIntermediate(intermediate: {
       number: number
       width: number
       height: number
+      content?: SerializedContent[]
       texts?: SerializedText[]
+      images?: SerializedImage[]
       thumbnail?: string
+      getContent?(): Promise<SerializedContent[]>
       getTexts?(): Promise<SerializedText[]>
       getThumbnail?(scale: number): Promise<string | undefined>
     }>
