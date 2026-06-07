@@ -25,21 +25,27 @@ import {
 	IntermediateText,
 	TextDir,
 } from "@hamster-note/types";
-import {
-	applyDecodeTextControl,
-	type BackgroundDecodeOptions,
-	type DecodeOptions,
+import type {
+	BackgroundDecodeOptions,
+	DecodeOptions,
 } from "./decodeTextControl.js";
 import { devConsoleError, devConsoleLog } from "./devLog.js";
 import { HtmlDocument } from "./HtmlDocument";
-import { isIntermediateTextLike, isIntermediateImageLike } from "./intermediateTextGuard.js";
+import {
+	runDecodeHtmlInWorker,
+	runEncodeDocumentBuildInWorker,
+} from "./htmlParserWorkerClient.js";
+import {
+	type DecodeHtmlPagePayload,
+	escapeHtml,
+	serializeWorkerContentItem,
+} from "./htmlParserWorkerCore.js";
+import { isIntermediateImageLike, isIntermediateTextLike } from "./intermediateTextGuard.js";
 import {
 	buildOffscreenPageElement,
 	type OffscreenPageHandle,
 } from "./pageThumbnailDom.js";
-import { cssStyleRecordToString, formatTextCssStyle } from "./textCssStyle.js";
 import { measureTextBaseline } from "./textMeasurement.js";
-import { computeTextStyle } from "./textStyle.js";
 
 const ELEMENT_NODE = 1;
 const TEXT_NODE = 3;
@@ -223,29 +229,6 @@ async function captureThumbnail(
 	} finally {
 		handle?.cleanup();
 	}
-}
-
-/**
- * 转义文本为安全的 HTML 文本（避免注入）。
- */
-function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
-}
-
-/**
- * 将数值转换为 CSS 长度：
- * - 绝对值 < 1 认为是百分比（例如 0.5 -> 50%）
- * - 否则使用像素 px
- */
-function cssPxOrPercent(val: number): string {
-	if (!Number.isFinite(val)) return "0px";
-	if (Math.abs(val) < 1) return `${(val * 100).toFixed(4)}%`;
-	return `${val}px`;
 }
 
 /**
@@ -945,28 +928,10 @@ export class HtmlParser extends DocumentParser {
 		return HtmlParser.decode(intermediateDocument);
 	}
 
-	// 复用的内部样式片段
-	private static getFragmentStyle(): string {
-		return `
-      .hamster-note-document { position: relative; display: block; contain: layout style size; }
-      .hamster-note-document .hamster-note-page { position: relative; overflow: hidden; background-repeat: no-repeat; background-position: top center; background-size: contain; }
-      .hamster-note-document .hamster-note-text { position: absolute; white-space: pre; transform-origin: 0 0; }
-    `.replace(/\n\s+/g, " ");
-	}
-
-	// 复用的单个文本渲染
-	private static renderTextSpan(t: IntermediateText): string {
-		const style = cssStyleRecordToString(
-			formatTextCssStyle(computeTextStyle(t)),
-		);
-		return `<span class="hamster-note-text" id="${escapeHtml(t.id)}" style="${escapeHtml(style)}">${escapeHtml(t.content)}</span>`;
-	}
-
-	// 复用的页面渲染
-	private static async lazyRenderPageDiv(
+	private static async buildDecodePagePayload(
 		p: IntermediatePage,
 		options?: DecodeOptions,
-	): Promise<string> {
+	): Promise<DecodeHtmlPagePayload> {
 		const pageContent = Array.isArray(
 			(p as unknown as { content?: unknown[] }).content,
 		)
@@ -975,26 +940,22 @@ export class HtmlParser extends DocumentParser {
 				? (p as unknown as { texts: unknown[] }).texts
 				: [];
 
-		const thumbnailTexts = pageContent.filter(isIntermediateTextLike);
-
-		// 提取页面中的图片对象，即使排除文本时也会传给 captureThumbnail
-		const thumbnailImages = pageContent.filter(isIntermediateImageLike);
-
-		const texts = thumbnailTexts
-			// 在调用 renderTextSpan 前，将 textControl 覆盖应用到文本对象上
-			.map((t) =>
-				HtmlParser.renderTextSpan(
-					applyDecodeTextControl(t, options?.textControl),
-				),
-			)
-			.join("");
-
+		const serializedContent = pageContent
+			.map(serializeWorkerContentItem)
+			.filter((item): item is NonNullable<typeof item> => item != null);
 		const bgOptions = options?.background;
 
 		if (bgOptions?.includeBackground === false) {
-			return `<div class="hamster-note-page" id="${escapeHtml(p.id)}" style="${escapeHtml(`width:${cssPxOrPercent(p.width)};height:${cssPxOrPercent(p.height)}`)}">${texts}</div>`;
+			return {
+				id: p.id,
+				width: p.width,
+				height: p.height,
+				content: serializedContent,
+			};
 		}
 
+		const thumbnailTexts = pageContent.filter(isIntermediateTextLike);
+		const thumbnailImages = pageContent.filter(isIntermediateImageLike);
 		const quality =
 			typeof bgOptions?.backgroundQuality === "number"
 				? bgOptions.backgroundQuality
@@ -1012,8 +973,14 @@ export class HtmlParser extends DocumentParser {
 						bgOptions,
 					)
 				: await p.getThumbnail(quality);
-		const bg = thumb?.src ? `background-image:url('${thumb.src}');` : "";
-		return `<div class="hamster-note-page" id="${escapeHtml(p.id)}" style="${escapeHtml(`width:${cssPxOrPercent(p.width)};height:${cssPxOrPercent(p.height)};${bg}`)}">${texts}</div>`;
+
+		return {
+			id: p.id,
+			width: p.width,
+			height: p.height,
+			content: serializedContent,
+			backgroundSrc: thumb?.src,
+		};
 	}
 
 	/**
@@ -1388,6 +1355,7 @@ export class HtmlParser extends DocumentParser {
 		doc: Document,
 		id: string,
 		segments: RenderedTextSegment[],
+		images: IntermediateImage[],
 	): { texts: IntermediateText[]; pageWidth: number; pageHeight: number } {
 		const bodyRect = doc.body.getBoundingClientRect();
 		const originX = Number.isFinite(bodyRect.left) ? bodyRect.left : 0;
@@ -1446,13 +1414,31 @@ export class HtmlParser extends DocumentParser {
 			(max, text) => Math.max(max, text.polygon[2][1]),
 			0,
 		);
+		const maxImageRight = images.reduce(
+			(max, image) => Math.max(max, image.polygon[1][0]),
+			0,
+		);
+		const maxImageBottom = images.reduce(
+			(max, image) => Math.max(max, image.polygon[2][1]),
+			0,
+		);
+		const viewportWidth = Math.max(
+			doc.documentElement.clientWidth,
+			doc.body.clientWidth,
+			Number.isFinite(bodyRect.width) ? bodyRect.width : 0,
+		);
+		const viewportHeight = Math.max(
+			doc.documentElement.clientHeight,
+			doc.body.clientHeight,
+			Number.isFinite(bodyRect.height) ? bodyRect.height : 0,
+		);
 		const pageWidth = Math.max(
 			1,
 			Math.round(
 				Math.max(
-					doc.documentElement.scrollWidth,
-					doc.body.scrollWidth,
+					viewportWidth,
 					maxRight,
+					maxImageRight,
 				),
 			),
 		);
@@ -1460,9 +1446,9 @@ export class HtmlParser extends DocumentParser {
 			1,
 			Math.round(
 				Math.max(
-					doc.documentElement.scrollHeight,
-					doc.body.scrollHeight,
+					viewportHeight,
 					maxBottom,
+					maxImageBottom,
 				),
 			),
 		);
@@ -1773,7 +1759,12 @@ export class HtmlParser extends DocumentParser {
 		const images = await HtmlParser.collectImagesFromDocument(doc, id);
 
 		if (renderedSegments.length > 0) {
-			const rendered = HtmlParser.buildRenderedTexts(doc, id, renderedSegments);
+			const rendered = HtmlParser.buildRenderedTexts(
+				doc,
+				id,
+				renderedSegments,
+				images,
+			);
 			devConsoleLog("[collectTextsFromDocument] 使用真实 DOM 布局采集完成", {
 				title,
 				textCount: rendered.texts.length,
@@ -1919,19 +1910,23 @@ export class HtmlParser extends DocumentParser {
 			pageHeight,
 		});
 
+		const workerPayload = await runEncodeDocumentBuildInWorker({
+			id,
+			title,
+			pageWidth,
+			pageHeight,
+			texts: texts.map((text) => IntermediateText.serialize(text)),
+			images: images.map((image) => IntermediateImage.serialize(image)),
+		});
+
 		const infoList = [
 			{
-				id: `${id}-page-1`,
+				id: workerPayload.page.id,
 				pageNumber: 1,
-				size: { x: pageWidth, y: pageHeight },
+				size: { x: workerPayload.page.width, y: workerPayload.page.height },
 				getData: async () => {
-					const content = [...texts, ...images];
 					const page = new IntermediatePage({
-						id: `${id}-page-1`,
-						number: 1,
-						width: pageWidth,
-						height: pageHeight,
-						content,
+						...workerPayload.page,
 						thumbnail: undefined,
 					});
 					page.setGetThumbnail(
@@ -1943,8 +1938,8 @@ export class HtmlParser extends DocumentParser {
 		];
 		const pagesMap = IntermediatePageMap.makeByInfoList(infoList);
 		const intermediateDocument = new IntermediateDocument({
-			id,
-			title,
+			id: workerPayload.id,
+			title: workerPayload.title,
 			pagesMap,
 		});
 
@@ -1969,16 +1964,16 @@ export class HtmlParser extends DocumentParser {
 			docId: intermediateDocument.id,
 			title: intermediateDocument.title,
 		});
-		// 片段 CSS：只包含必要的定位/换行/变换等基础样式
 		const pages = await intermediateDocument.pages;
 		devConsoleLog("[decodeToHtml] 获取到页面数", pages.length);
-		const style = HtmlParser.getFragmentStyle();
 
-		const pageHtml = await Promise.all(
-			pages.map((p) => HtmlParser.lazyRenderPageDiv(p, options)),
+		const workerPages = await Promise.all(
+			pages.map((p) => HtmlParser.buildDecodePagePayload(p, options)),
 		);
-
-		const result = `<div class="hamster-note-document"><style>${style}</style>${pageHtml.join("")}</div>`;
+		const result = await runDecodeHtmlInWorker({
+			pages: workerPages,
+			options,
+		});
 		devConsoleLog("[decodeToHtml] HTML 片段渲染完成", {
 			length: result.length,
 		});

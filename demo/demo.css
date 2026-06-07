@@ -162,14 +162,17 @@ button:hover {
   color: #e6edf3;
   border-radius: 8px;
   padding: 12px;
+  max-width: 100%;
   min-height: 220px;
   overflow: auto;
+  overflow-wrap: anywhere;
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .button-secondary {
@@ -186,6 +189,12 @@ button:hover {
   display: grid;
   gap: 16px;
   grid-template-columns: 1fr;
+  min-width: 0;
+}
+
+.output-panel {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .output-panel h3 {
@@ -212,12 +221,7 @@ button:hover {
 }
 
 .output.is-collapsed {
-  min-height: 0;
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-width: 0;
-  overflow: hidden;
+  display: none;
 }
 
 .preview {

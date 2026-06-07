@@ -539,6 +539,111 @@ describe('HtmlParser', () => {
     })
   })
 
+  it('collectTextsFromDocument 不应被长内容撑大的 scrollWidth 放大页面宽度', async () => {
+    await withDomDocument(async ({ document, DOMRect }) => {
+      setPretextAdapter({
+        measure: (text) => ({
+          width: text.length * 8,
+          height: 18
+        })
+      })
+
+      const parserRef = HtmlParser as unknown as Record<string, unknown>
+      const testDocument = document
+      const originalTitle = testDocument.title
+      const originalBodyHtml = testDocument.body.innerHTML
+      const originalCreateRange = testDocument.createRange.bind(testDocument)
+      const originalBodyRect = testDocument.body.getBoundingClientRect.bind(testDocument.body)
+      const defaultView = testDocument.defaultView
+      if (!defaultView) throw new Error('expected defaultView to exist in test document')
+      const originalGetComputedStyle = defaultView.getComputedStyle.bind(defaultView)
+
+      try {
+        testDocument.title = 'Inflated Scroll Width'
+        testDocument.body.innerHTML = '<p><span id="short-text">Preview text</span></p>'
+
+        Object.defineProperty(testDocument.documentElement, 'scrollWidth', {
+          configurable: true,
+          value: 30000
+        })
+        Object.defineProperty(testDocument.documentElement, 'scrollHeight', {
+          configurable: true,
+          value: 12000
+        })
+        Object.defineProperty(testDocument.body, 'scrollWidth', {
+          configurable: true,
+          value: 30000
+        })
+        Object.defineProperty(testDocument.body, 'scrollHeight', {
+          configurable: true,
+          value: 12000
+        })
+
+        const bodyRect = new DOMRect(10, 20, 320, 240)
+        testDocument.body.getBoundingClientRect =
+          (() => bodyRect) as typeof testDocument.body.getBoundingClientRect
+
+        const textNode = testDocument.querySelector('#short-text')?.firstChild as Text
+        const textRect = new DOMRect(10, 20, 96, 18)
+
+        testDocument.createRange = (() => {
+          let currentNode: Text | null = null
+
+          return {
+            selectNodeContents(node: Node) {
+              currentNode = node as Text
+            },
+            setStart(node: Node) {
+              currentNode = node as Text
+            },
+            setEnd(node: Node) {
+              currentNode = node as Text
+            },
+            getClientRects() {
+              return currentNode === textNode ? [textRect] : []
+            },
+            getBoundingClientRect() {
+              return currentNode === textNode ? textRect : null
+            },
+            detach() {}
+          } as unknown as Range
+        }) as typeof testDocument.createRange
+
+        defaultView.getComputedStyle = (() => ({
+          fontSize: '16px',
+          lineHeight: '20px',
+          fontWeight: '400',
+          fontStyle: 'normal',
+          color: 'rgb(0, 0, 0)',
+          fontFamily: 'sans-serif',
+          writingMode: 'horizontal-tb',
+          transform: 'none',
+          transformOrigin: '0px 0px'
+        } as CSSStyleDeclaration)) as typeof defaultView.getComputedStyle
+
+        const result = await (parserRef.collectTextsFromDocument as (
+          doc: Document,
+          id: string
+        ) => Promise<{
+          texts: Array<{ content: string; polygon: number[][] }>
+          pageWidth: number
+          pageHeight: number
+        }>)(testDocument, 'inflated-scroll')
+
+        expect(result.texts.map((text) => text.content)).toEqual(['Preview text'])
+        expect(result.texts[0]?.polygon).toEqual([[0, 0], [96, 0], [96, 18], [0, 18]])
+        expect(result.pageWidth).toBe(320)
+        expect(result.pageHeight).toBe(240)
+      } finally {
+        testDocument.title = originalTitle
+        testDocument.body.innerHTML = originalBodyHtml
+        testDocument.createRange = originalCreateRange
+        testDocument.body.getBoundingClientRect = originalBodyRect
+        defaultView.getComputedStyle = originalGetComputedStyle
+      }
+    })
+  })
+
   it('collectTextsFromDocument 应该支持特殊 demo 文本场景', async () => {
     await withDomDocument(async ({ document, DOMRect }) => {
       setPretextAdapter({
