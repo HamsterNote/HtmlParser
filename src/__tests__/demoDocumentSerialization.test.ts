@@ -826,7 +826,7 @@ describe('demo document serialization', () => {
     expect(html).toContain('img-old')
   })
 
-  // ---- TDD: background option forwarding tests (excludeImagesFromBackground) ----
+  // ---- Background option forwarding tests (excludeImagesFromBackground) ----
 
   it('forwards excludeImagesFromBackground through data.background to injected decodeToHtml', async () => {
     const serialized = {
