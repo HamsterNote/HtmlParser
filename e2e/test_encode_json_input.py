@@ -155,6 +155,7 @@ def test_json_input_with_background_image_exclusion_keeps_foreground_image(demo_
     fill_json_input(demo_page, IMAGE_DOCUMENT)
     bg_exclude_images = demo_page.locator('[data-role="bg-exclude-images"]')
     expect(bg_exclude_images).to_be_visible()
+    expect(bg_exclude_images).to_have_attribute("data-option", "excludeImagesFromBackground")
     assert bg_exclude_images.is_checked() is False
 
     bg_exclude_images.check()

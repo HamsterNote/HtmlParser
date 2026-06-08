@@ -260,7 +260,7 @@ export function buildOffscreenPageElement(
   }
 
   if (options?.excludeImagesFromBackground !== true) {
-    // 渲染图片元素——始终渲染，不受 excludeTextFromBackground 影响
+    // 未启用图片排除时渲染背景图片；仍不受 excludeTextFromBackground 影响
     const images = page.images ?? []
     images.forEach((image) => {
       const img = doc.createElement('img')
