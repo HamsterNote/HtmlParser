@@ -1,0 +1,5 @@
+
+> @hamster-note/html-parser@0.7.0 lint
+> echo 'no-lint'
+
+no-lint

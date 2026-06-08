@@ -1,0 +1,39 @@
+Task 4 Evidence: Denylist Test
+================================
+Date: 2026-06-08
+File: src/__tests__/renderer.test.ts
+
+## Test: "denylist: transition, animation, cursor, user-select, will-change, vendor-internal properties are NOT captured"
+
+Status: PASS
+
+Assertions verified:
+- container.style.transition === "" ✓
+- styleText does not contain "transition" ✓
+- container.style.animation === "" ✓
+- styleText does not contain "animation" ✓
+- container.style.cursor === "" ✓
+- styleText does not contain "cursor" ✓
+- container.style.userSelect === "" ✓
+- styleText does not contain "user-select" ✓
+- container.style.willChange === "" ✓
+- styleText does not contain "will-change" ✓
+- styleText does not contain "-internal-" ✓
+
+Note: pointer-events was excluded from denylist assertions because
+`appendWhitelistedStyleContainer()` sets `pointerEvents: 'none'` on
+every container (line 184 of pageThumbnailDom.ts) as part of container
+creation logic, not as a captured source style.
+
+## Denylist Properties (explicitly excluded from capture)
+These properties must NEVER appear in captured styles:
+1. transition - animation timing, not visual snapshot
+2. animation - animation effects, not visual snapshot
+3. cursor - interaction hint, not visual
+4. user-select - interaction behavior, not visual
+5. will-change - performance hint, not visual
+6. -internal-* - vendor-internal properties
+
+## Out-of-scope
+Pseudo-elements (::before, ::after) are explicitly out of scope because
+TreeWalker only traverses real DOM element nodes.

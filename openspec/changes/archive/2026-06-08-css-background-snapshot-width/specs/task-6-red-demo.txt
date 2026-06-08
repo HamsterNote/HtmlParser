@@ -1,0 +1,206 @@
+(node:3400591) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FAIL src/__tests__/demoEncodeSnapshotWidth.test.ts
+  demo encode.html snapshot-width input
+    ✕ contains a number input with data-role="snapshot-width" (3 ms)
+    ✕ has type="number" on the snapshot-width input (1 ms)
+    ✕ places snapshot-width input inside the exclude-selector-section (2 ms)
+    ✕ locates snapshot-width input after the exclude-selectors input in DOM order (1 ms)
+  handleParse snapshot-width option forwarding
+    ✕ omits snapshotWidth when input is empty (6 ms)
+    ✕ passes { snapshotWidth: value } when input has a positive number (5 ms)
+    ✕ floors fractional snapshotWidth to integer (4 ms)
+    ✕ throws deterministic error for non-numeric input (6 ms)
+    ✕ throws deterministic error for negative snapshotWidth (5 ms)
+    ✕ throws deterministic error for zero snapshotWidth (4 ms)
+  EncodeOptions snapshotWidth field
+    ✓ EncodeOptions type accepts optional snapshotWidth number field
+
+  ● demo encode.html snapshot-width input › contains a number input with data-role="snapshot-width"
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      116 |   it('contains a number input with data-role="snapshot-width"', () => {
+      117 |     const input = doc.querySelector('[data-role="snapshot-width"]')
+    > 118 |     expect(input).not.toBeNull()
+          |                       ^
+      119 |     expect(input!.tagName).toBe('INPUT')
+      120 |   })
+      121 |
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:118:23)
+
+  ● demo encode.html snapshot-width input › has type="number" on the snapshot-width input
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      122 |   it('has type="number" on the snapshot-width input', () => {
+      123 |     const input = doc.querySelector('[data-role="snapshot-width"]') as HTMLInputElement | null
+    > 124 |     expect(input).not.toBeNull()
+          |                       ^
+      125 |     expect(input!.type).toBe('number')
+      126 |   })
+      127 |
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:124:23)
+
+  ● demo encode.html snapshot-width input › places snapshot-width input inside the exclude-selector-section
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      130 |     expect(section).not.toBeNull()
+      131 |     const input = section!.querySelector('[data-role="snapshot-width"]')
+    > 132 |     expect(input).not.toBeNull()
+          |                       ^
+      133 |   })
+      134 |
+      135 |   it('locates snapshot-width input after the exclude-selectors input in DOM order', () => {
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:132:23)
+
+  ● demo encode.html snapshot-width input › locates snapshot-width input after the exclude-selectors input in DOM order
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      137 |     const snapshotInput = doc.querySelector('[data-role="snapshot-width"]')
+      138 |     expect(excludeInput).not.toBeNull()
+    > 139 |     expect(snapshotInput).not.toBeNull()
+          |                               ^
+      140 |     // snapshot-width must appear later in document order
+      141 |     const position = excludeInput!.compareDocumentPosition(snapshotInput!)
+      142 |     expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:139:31)
+
+  ● handleParse snapshot-width option forwarding › omits snapshotWidth when input is empty
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      224 |   it('omits snapshotWidth when input is empty', async () => {
+      225 |     const input = doc.querySelector('[data-role="snapshot-width"]') as HTMLInputElement | null
+    > 226 |     expect(input).not.toBeNull()
+          |                       ^
+      227 |     input!.value = ''
+      228 |
+      229 |     const mockEncode = createMockEncode()
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:226:23)
+
+  ● handleParse snapshot-width option forwarding › passes { snapshotWidth: value } when input has a positive number
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      237 |   it('passes { snapshotWidth: value } when input has a positive number', async () => {
+      238 |     const input = doc.querySelector('[data-role="snapshot-width"]') as HTMLInputElement | null
+    > 239 |     expect(input).not.toBeNull()
+          |                       ^
+      240 |     input!.value = '640'
+      241 |
+      242 |     const mockEncode = createMockEncode()
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:239:23)
+
+  ● handleParse snapshot-width option forwarding › floors fractional snapshotWidth to integer
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      250 |   it('floors fractional snapshotWidth to integer', async () => {
+      251 |     const input = doc.querySelector('[data-role="snapshot-width"]') as HTMLInputElement | null
+    > 252 |     expect(input).not.toBeNull()
+          |                       ^
+      253 |     input!.value = '800.7'
+      254 |
+      255 |     const mockEncode = createMockEncode()
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:252:23)
+
+  ● handleParse snapshot-width option forwarding › throws deterministic error for non-numeric input
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      263 |   it('throws deterministic error for non-numeric input', async () => {
+      264 |     const input = doc.querySelector('[data-role="snapshot-width"]') as HTMLInputElement | null
+    > 265 |     expect(input).not.toBeNull()
+          |                       ^
+      266 |     input!.value = 'abc'
+      267 |
+      268 |     const mockEncode = createMockEncode()
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:265:23)
+
+  ● handleParse snapshot-width option forwarding › throws deterministic error for negative snapshotWidth
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      276 |   it('throws deterministic error for negative snapshotWidth', async () => {
+      277 |     const input = doc.querySelector('[data-role="snapshot-width"]') as HTMLInputElement | null
+    > 278 |     expect(input).not.toBeNull()
+          |                       ^
+      279 |     input!.value = '-100'
+      280 |
+      281 |     const mockEncode = createMockEncode()
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:278:23)
+
+  ● handleParse snapshot-width option forwarding › throws deterministic error for zero snapshotWidth
+
+    expect(received).not.toBeNull()
+
+    Received: null
+
+      289 |   it('throws deterministic error for zero snapshotWidth', async () => {
+      290 |     const input = doc.querySelector('[data-role="snapshot-width"]') as HTMLInputElement | null
+    > 291 |     expect(input).not.toBeNull()
+          |                       ^
+      292 |     input!.value = '0'
+      293 |
+      294 |     const mockEncode = createMockEncode()
+
+      at Object.<anonymous> (src/__tests__/demoEncodeSnapshotWidth.test.ts:291:23)
+
+Test Suites: 1 failed, 1 total
+Tests:       10 failed, 1 passed, 11 total
+Snapshots:   0 total
+Time:        2.524 s
+Ran all test suites matching src/__tests__/demoEncodeSnapshotWidth.test.ts.
+
+=== E2E Test (Playwright) ===
+$ .venv/bin/python -m pytest e2e/test_encode_snapshot_width.py::test_encode_page_has_snapshot_width_input -q --tb=short
+
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________________ test_encode_page_has_snapshot_width_input ___________________
+e2e/test_encode_snapshot_width.py:28: in test_encode_page_has_snapshot_width_input
+    expect(locator).to_have_count(1)
+E   AssertionError: Locator expected to have count '1'
+E   Actual value: 0
+E   Call log:
+E     - LocatorAssertions.to_have_count with timeout 5000ms
+E     - waiting for locator("[data-role=\"snapshot-width\"]")
+E       × locator resolved to 0 elements
+=========================== short test summary info ===========================
+FAILED e2e/test_encode_snapshot_width.py::test_encode_page_has_snapshot_width_input
+1 failed in 6.97s
+
+=== Summary ===
+Unit tests: 10 failed, 1 passed (EncodeOptions type test uses @ts-expect-error gate)
+E2E tests: 1 failed (snapshot-width input not found in DOM)
+All failures are RED state — feature not yet implemented.

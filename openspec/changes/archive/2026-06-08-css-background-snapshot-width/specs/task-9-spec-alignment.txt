@@ -1,0 +1,89 @@
+=== Spec Alignment Checks (Task 9) ===
+
+Goal: confirm OpenSpec change files describe the actual implementation.
+Method: targeted grep of source files for the public-facing symbols mentioned in
+        change.md / scope.md / tests.md.
+
+--- 1. snapshotWidth in EncodeOptions and surrounding pipeline ---
+src/index.ts:
+  91:	snapshotWidth?: number;                              <- EncodeOptions field
+  94:export function resolveSnapshotWidth(...)             <- runtime validator
+ 106:		throw new Error(`Invalid snapshotWidth: ${value}`); <- strict throw, not silent
+ 174:	snapshotWidth?: number,                              <- buildLazyThumbnailFn signature
+ 203:			cachedSnapshotWidth === snapshotWidth          <- cache key includes width
+ 311:			canvasOptions.width = snapshotWidth;             <- html2canvas width
+ 312:			canvasOptions.windowWidth = snapshotWidth;       <- html2canvas windowWidth
+2098:		const snapshotWidth = resolveSnapshotWidth(options);
+2117:					snapshotWidth,                                <- forwarded to withIframeDocument
+2123:			snapshotWidth,                                  <- forwarded to collectTexts...
+2172:							snapshotWidth,                            <- forwarded to thumbnail pipeline
+
+--- 2. snapshotWidth in offscreen DOM (pageThumbnailDom.ts) ---
+src/pageThumbnailDom.ts:
+   22:  snapshotWidth?: number                              <- BuildOffscreenPageElementOptions
+  408:    width: `${options?.snapshotWidth ?? page.width}px` <- wrapper width override
+
+--- 3. snapshotWidth in Demo (UI + wiring + type mirror) ---
+demo/encode.html:
+  84:  <label class="exclude-selector-label" for="snapshot-width">
+  92:    id="snapshot-width"
+  94:    data-role="snapshot-width"                          <- spec'd attribute exists
+demo/demo.js:
+  15:  const snapshotWidthInput = document.querySelector('[data-role="snapshot-width"]')
+  71:  const rawValue = snapshotWidthInput?.value?.trim() ?? ''
+ 105:    const snapshotWidth = parseSnapshotWidth()
+ 108:    if (snapshotWidth !== undefined) encodeOptions.snapshotWidth = snapshotWidth
+demo/demoDocumentSerialization.d.ts:
+  73:  snapshotWidth?: number                              <- type mirror
+
+--- 4. Denylist coverage (pageThumbnailDom.ts DENIED_STYLE_PROPERTY_NAMES) ---
+Lines 71-114 of src/pageThumbnailDom.ts. Confirmed entries include:
+  animation, animation-*, transition, transition-*, cursor, filter,
+  pointer-events, user-select, backdrop-filter, caret-color, will-change,
+  scroll-behavior, overscroll-behavior, resize, mix-blend-mode, transform,
+  perspective, contain, isolation, and pseudo-style/ARIA hooks.
+Plus prefix-based denial in shouldDenyStyleProperty():
+ 168:    property.startsWith('animation-') ||
+ 169:    property.startsWith('transition-') ||
+This matches the "denylist coverage" objective recorded in
+.omo/evidence/task-5-css-props.txt and the Task 5 entry in learnings.md.
+
+--- 5. Pseudo-elements out-of-scope check ---
+src/pageThumbnailDom.ts uses getComputedStyle(element) WITHOUT a pseudo-element
+argument, so ::before/::after styles are never read or copied. This is the
+implicit out-of-scope guarantee. No regression test asserts pseudo-element
+content because pseudo-elements were never in scope per OpenSpec change docs.
+
+--- 6. Archive-edits check ---
+Command: git diff --name-only | grep '^openspec/changes/archive/'
+Result : (no output, exit code 1)
+Meaning: grep exits 1 when there are NO matches. The task wording
+        ("exits 0") was slightly off; "exit 1 with no output" is the
+        clean state we want. No archived OpenSpec change files were
+        modified.
+
+--- 7. snapshotWidth test coverage (line-occurrence count per file) ---
+src/__tests__/htmlParser.test.ts          : 16 matches
+src/__tests__/renderer.test.ts            :  1 match
+src/__tests__/typeExports.test.ts         :  3 matches
+src/__tests__/demoEncodeSnapshotWidth.test.ts: 41 matches
+e2e/test_encode_snapshot_width.py         : 27 matches
+Total: 5 test files exercise snapshotWidth across unit, integration,
+       demo-unit, and E2E layers.
+
+--- 8. Spec corrections applied during Task 9 ---
+change.md:
+  - "仅当 snapshotWidth 为有限正数时生效" replaced with explicit
+    integer + 100-10000 + throw-on-invalid description.
+scope.md:
+  - "Behavior Guarantees #2" replaced with strict validation rule that
+    documents the throw behavior (replacing the silent fallback wording).
+tests.md:
+  - Added "1b. Runtime Validation Tests" section listing the 11 runtime
+    validation cases that already live in htmlParser.test.ts.
+No other spec drift detected.
+
+--- 9. Result ---
+OpenSpec change docs (change.md, scope.md, tests.md) now agree with the
+implementation across the eight tasks 2-8 plus this Task 9 alignment.
+No archive edits. All grep checks pass against current source.

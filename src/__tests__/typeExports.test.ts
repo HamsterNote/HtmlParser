@@ -12,4 +12,9 @@ describe('package entry type exports', () => {
     expect(typeof encodeWithOptions).toBe('function')
     expect(options.excludeSelectors).toEqual(['.ad', '#chrome'])
   })
+
+  it('EncodeOptions accepts snapshotWidth optional number', () => {
+    const options: EncodeOptions = { snapshotWidth: 640 }
+    expect(options.snapshotWidth).toBe(640)
+  })
 })

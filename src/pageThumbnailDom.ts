@@ -18,6 +18,8 @@ export interface BuildOffscreenPageElementOptions {
   sourceDoc?: Document
   /** 已在源 DOM 生命周期内捕获好的视觉容器模型 */
   styleContainers?: readonly WhitelistedStyleContainerModel[]
+  /** 缩略图快照宽度；未传入时沿用页面自身宽度 */
+  snapshotWidth?: number
 }
 
 export interface OffscreenPageHandle {
@@ -36,12 +38,86 @@ export interface WhitelistedStyleContainerModel {
 const STYLE_CONTAINER_CLASS = 'hamster-note-visual-container'
 const ELEMENT_NODE_FILTER = 1
 const BORDER_SIDES = ['top', 'right', 'bottom', 'left'] as const
-const BORDER_RADIUS_CORNERS = [
-  'top-left',
-  'top-right',
-  'bottom-right',
-  'bottom-left'
+const VISUAL_STYLE_PROPERTY_PREFIXES = [
+  'background-',
+  'border-',
+  'outline-',
+  'padding-',
+  'font-',
+  'text-',
+  'overflow-',
+  'flex-',
+  'grid-',
+  'align-',
+  'justify-',
+  'place-'
 ] as const
+const VISUAL_STYLE_PROPERTY_NAMES = new Set([
+  'background',
+  'border',
+  'border-radius',
+  'box-shadow',
+  'color',
+  'column-gap',
+  'display',
+  'gap',
+  'opacity',
+  'outline',
+  'overflow',
+  'padding',
+  'row-gap',
+  'visibility'
+])
+const DENIED_STYLE_PROPERTY_NAMES = new Set([
+  'animation',
+  'animation-composition',
+  'animation-delay',
+  'animation-direction',
+  'animation-duration',
+  'animation-fill-mode',
+  'animation-iteration-count',
+  'animation-name',
+  'animation-play-state',
+  'animation-range',
+  'animation-range-end',
+  'animation-range-start',
+  'animation-timeline',
+  'animation-timing-function',
+  'backdrop-filter',
+  'caret-color',
+  'cursor',
+  'filter',
+  'mix-blend-mode',
+  'overscroll-behavior',
+  'overscroll-behavior-block',
+  'overscroll-behavior-inline',
+  'overscroll-behavior-x',
+  'overscroll-behavior-y',
+  'pointer-events',
+  'resize',
+  'scroll-behavior',
+  'scroll-margin',
+  'scroll-padding',
+  'transition',
+  'transition-behavior',
+  'transition-delay',
+  'transition-duration',
+  'transition-property',
+  'transition-timing-function',
+  'user-select',
+  'will-change'
+])
+const DEFAULT_COMPUTED_STYLE_VALUES = new Map([
+  ['direction', 'ltr'],
+  ['display', 'block'],
+  ['font-family', '"times new roman"'],
+  ['font-size', '16px'],
+  ['font-stretch', 'normal'],
+  ['font-style', 'normal'],
+  ['font-variant', 'normal'],
+  ['font-weight', 'normal'],
+  ['line-height', 'normal']
+])
 
 function readCss(style: CSSStyleDeclaration, property: string): string {
   return style.getPropertyValue(property).trim()
@@ -80,48 +156,147 @@ function isVisibleLineStyle(style: string): boolean {
   return normalized !== '' && normalized !== 'none' && normalized !== 'hidden'
 }
 
-function collectWhitelistedStyles(computedStyle: CSSStyleDeclaration): Record<string, string> {
-  const styles: Record<string, string> = {}
-  const backgroundColor = readCss(computedStyle, 'background-color')
+function isDeniedStyleProperty(property: string, value: string): boolean {
+  if (property.startsWith('--')) return true
+  if (property.startsWith('-')) return true
+  if (property.startsWith('aria-')) return true
+  if (property.includes('-internal-')) return true
+  if (value.toLowerCase().includes('-internal-')) return true
+  if (property === 'role') return true
+  if (DENIED_STYLE_PROPERTY_NAMES.has(property)) return true
+  return (
+    property.startsWith('animation-') ||
+    property.startsWith('transition-') ||
+    property.startsWith('scroll-') ||
+    property.startsWith('overscroll-')
+  )
+}
 
-  if (!isTransparentColor(backgroundColor)) {
-    styles['background-color'] = backgroundColor
+function isVisualStyleProperty(property: string): boolean {
+  if (VISUAL_STYLE_PROPERTY_NAMES.has(property)) return true
+  return VISUAL_STYLE_PROPERTY_PREFIXES.some((prefix) =>
+    property.startsWith(prefix)
+  )
+}
+
+function isDefaultComputedStyleValue(property: string, value: string): boolean {
+  return DEFAULT_COMPUTED_STYLE_VALUES.get(property) === value.toLowerCase()
+}
+
+function isColorProperty(property: string): boolean {
+  return property === 'color' || property.endsWith('-color')
+}
+
+function shouldSkipZeroLengthProperty(property: string): boolean {
+  return (
+    property.startsWith('padding') ||
+    property.endsWith('-radius') ||
+    property.endsWith('-width') ||
+    property.endsWith('-gap') ||
+    property === 'gap' ||
+    property === 'letter-spacing' ||
+    property === 'outline-offset' ||
+    property === 'text-indent' ||
+    property === 'word-spacing'
+  )
+}
+
+function getBorderSide(property: string): (typeof BORDER_SIDES)[number] | undefined {
+  return BORDER_SIDES.find((side) => property.startsWith(`border-${side}-`))
+}
+
+function shouldKeepBorderSideProperty(
+  computedStyle: CSSStyleDeclaration,
+  property: string,
+  value: string
+): boolean {
+  const side = getBorderSide(property)
+  if (!side) return true
+
+  const borderWidth = readCss(computedStyle, `border-${side}-width`)
+  const borderStyle = readCss(computedStyle, `border-${side}-style`)
+  if (isZeroCssLength(borderWidth) || !isVisibleLineStyle(borderStyle)) {
+    return false
   }
 
-  for (const side of BORDER_SIDES) {
-    const widthProperty = `border-${side}-width`
-    const styleProperty = `border-${side}-style`
-    const colorProperty = `border-${side}-color`
-    const borderWidth = readCss(computedStyle, widthProperty)
-    const borderStyle = readCss(computedStyle, styleProperty)
-
-    // 边框只有在线型可见且宽度非 0 时才有可绘制内容。
-    if (!isZeroCssLength(borderWidth) && isVisibleLineStyle(borderStyle)) {
-      styles[widthProperty] = borderWidth
-      styles[styleProperty] = borderStyle
-      styles[colorProperty] = readCss(computedStyle, colorProperty)
-    }
+  if (property === `border-${side}-color`) {
+    return !isTransparentColor(value)
   }
 
-  for (const corner of BORDER_RADIUS_CORNERS) {
-    const property = `border-${corner}-radius`
-    const value = readCss(computedStyle, property)
-    if (!isZeroCssLength(value)) {
-      styles[property] = value
-    }
-  }
+  return true
+}
 
-  const boxShadow = readCss(computedStyle, 'box-shadow')
-  if (boxShadow !== '' && boxShadow.toLowerCase() !== 'none') {
-    styles['box-shadow'] = boxShadow
-  }
+function shouldKeepOutlineProperty(
+  computedStyle: CSSStyleDeclaration,
+  property: string,
+  value: string
+): boolean {
+  if (!property.startsWith('outline')) return true
 
   const outlineWidth = readCss(computedStyle, 'outline-width')
   const outlineStyle = readCss(computedStyle, 'outline-style')
-  if (!isZeroCssLength(outlineWidth) && isVisibleLineStyle(outlineStyle)) {
-    styles['outline-width'] = outlineWidth
-    styles['outline-style'] = outlineStyle
-    styles['outline-color'] = readCss(computedStyle, 'outline-color')
+  if (isZeroCssLength(outlineWidth) || !isVisibleLineStyle(outlineStyle)) {
+    return false
+  }
+
+  if (property === 'outline-color') return !isTransparentColor(value)
+  return true
+}
+
+function shouldKeepStyleValue(property: string, value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === '') return false
+  if (normalized === 'none') return false
+  if (normalized === 'initial' || normalized === 'inherit' || normalized === 'unset') {
+    return false
+  }
+  if (normalized === 'auto' || normalized === 'auto auto') return false
+  if (property.startsWith('overflow') && normalized === 'visible') return false
+  if (property.startsWith('background') && normalized === 'repeat') return false
+  if (property.startsWith('background-position') && normalized === '0% 0%') {
+    return false
+  }
+  if (property === 'background-color' && isTransparentColor(value)) return false
+  if (isColorProperty(property) && isTransparentColor(value)) return false
+  if (shouldSkipZeroLengthProperty(property) && isZeroCssLength(value)) return false
+  return !isDefaultComputedStyleValue(property, value)
+}
+
+function readVisualCss(
+  computedStyle: CSSStyleDeclaration,
+  inlineStyle: CSSStyleDeclaration | undefined,
+  property: string
+): string {
+  const computedValue = readCss(computedStyle, property)
+  if (computedValue !== '') return computedValue
+  return inlineStyle ? readCss(inlineStyle, property) : ''
+}
+
+function collectWhitelistedStyles(
+  computedStyle: CSSStyleDeclaration,
+  inlineStyle?: CSSStyleDeclaration
+): Record<string, string> {
+  const styles: Record<string, string> = {}
+
+  const candidateProperties = new Set<string>()
+  for (let index = 0; index < computedStyle.length; index += 1) {
+    candidateProperties.add(computedStyle.item(index))
+  }
+  if (inlineStyle) {
+    for (let index = 0; index < inlineStyle.length; index += 1) {
+      candidateProperties.add(inlineStyle.item(index))
+    }
+  }
+
+  for (const property of candidateProperties) {
+    const value = readVisualCss(computedStyle, inlineStyle, property)
+    if (isDeniedStyleProperty(property, value)) continue
+    if (!isVisualStyleProperty(property)) continue
+    if (!shouldKeepStyleValue(property, value)) continue
+    if (!shouldKeepBorderSideProperty(computedStyle, property, value)) continue
+    if (!shouldKeepOutlineProperty(computedStyle, property, value)) continue
+
+    styles[property] = value
   }
 
   return styles
@@ -150,7 +325,8 @@ export function captureWhitelistedStyleContainerModels(
     if (rect.width <= 0 || rect.height <= 0) continue
 
     const styles = collectWhitelistedStyles(
-      getSourceComputedStyle(sourceDoc, element)
+      getSourceComputedStyle(sourceDoc, element),
+      (element as HTMLElement).style
     )
 
     if (Object.keys(styles).length === 0) continue
@@ -229,13 +405,21 @@ export function buildOffscreenPageElement(
     left: '-10000px',
     top: '0',
     pointerEvents: 'none',
-    width: `${page.width}px`,
+    width: `${options?.snapshotWidth ?? page.width}px`,
     height: `${page.height}px`,
     overflow: 'hidden',
     backgroundRepeat: 'no-repeat',
     backgroundPosition: 'top center',
     backgroundSize: 'contain'
   })
+
+  if (options?.styleContainers) {
+    options.styleContainers.forEach((model) => {
+      appendWhitelistedStyleContainer(wrapper, doc, model)
+    })
+  } else if (options?.sourceDoc) {
+    captureWhitelistedStyleContainers(options.sourceDoc, wrapper, doc)
+  }
 
   if (options?.excludeTextFromBackground !== true) {
     page.texts.forEach((text) => {
@@ -251,12 +435,6 @@ export function buildOffscreenPageElement(
 
       wrapper.appendChild(span)
     })
-  } else if (options.styleContainers) {
-    options.styleContainers.forEach((model) => {
-      appendWhitelistedStyleContainer(wrapper, doc, model)
-    })
-  } else if (options.sourceDoc) {
-    captureWhitelistedStyleContainers(options.sourceDoc, wrapper, doc)
   }
 
   if (options?.excludeImagesFromBackground !== true) {

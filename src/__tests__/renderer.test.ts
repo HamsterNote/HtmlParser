@@ -1445,6 +1445,51 @@ describe("background style whitelist capture", () => {
 			root.querySelectorAll<HTMLElement>(".hamster-note-visual-container"),
 		);
 
+	it("captures visual containers in the default background path while keeping text", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("section");
+			source.textContent = "styled source copy must not be cloned";
+			source.style.backgroundColor = "rgb(77, 88, 99)";
+			source.style.border = "2px solid rgb(1, 2, 3)";
+			defineRect(source, { left: 14, top: 18, width: 90, height: 36 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{
+					id: "page-default-visual",
+					width: 160,
+					height: 100,
+					texts: [buildBackgroundText()],
+				},
+				document,
+				{ sourceDoc: document },
+			);
+
+			try {
+				const [container] = getVisualContainers(handle.element);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+
+				expect(container.style.backgroundColor).toBe("rgb(77, 88, 99)");
+				expect(container.style.borderTopWidth).toBe("2px");
+				expect(container.style.left).toBe("14px");
+				expect(container.style.top).toBe("18px");
+				expect(handle.element.querySelectorAll(".hamster-note-text")).toHaveLength(1);
+				expect(handle.element.textContent).toContain(
+					"Text must stay out of background",
+				);
+				expect(handle.element.textContent).not.toContain(
+					"styled source copy must not be cloned",
+				);
+				expect(handle.element.firstElementChild?.className).toBe(
+					"hamster-note-visual-container",
+				);
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
 	it("captures background-color, border, border-radius, box-shadow, outline into offscreen DOM when excludeTextFromBackground is true", async () => {
 		await withDomDocument(async ({ document }) => {
 			const source = document.createElement("section");
@@ -1546,7 +1591,7 @@ describe("background style whitelist capture", () => {
 		});
 	});
 
-	it("skips transform/filter/mix-blend-mode (non-whitelist properties)", async () => {
+	it("skips transform/filter/mix-blend-mode while keeping broad visual styles", async () => {
 		await withDomDocument(async ({ document }) => {
 			const source = document.createElement("div");
 			Object.assign(source.style, {
@@ -1579,11 +1624,11 @@ describe("background style whitelist capture", () => {
 				expect(styleText).not.toContain("transform");
 				expect(styleText).not.toContain("filter");
 				expect(styleText).not.toContain("mix-blend-mode");
-				expect(styleText).not.toContain("display");
 				expect(styleText).not.toContain("margin");
-				expect(styleText).not.toContain("padding");
-				expect(styleText).not.toContain("font-size");
-				expect(styleText).not.toContain("color: rgb(1, 1, 1)");
+				expect(container.style.display).toBe("flex");
+				expect(container.style.padding).toBe("8px");
+				expect(container.style.fontSize).toBe("42px");
+				expect(container.style.color).toBe("rgb(1, 1, 1)");
 			} finally {
 				handle.cleanup();
 			}
@@ -1732,6 +1777,403 @@ describe("background style whitelist capture", () => {
 				} else {
 					delete HTMLElement.prototype.getBoundingClientRect;
 				}
+			}
+		});
+	});
+
+	it("threads encode source DOM styles into default background thumbnail capture", async () => {
+		await withDomDocument(async ({ document, HTMLElement }) => {
+			const restoreDocument = exposeGlobalDocument(document);
+			const handle = installFakeHtml2Canvas({
+				dataUrl: "data:image/png;base64,DEFAULTSTYLE",
+			});
+			const rectDescriptor = Object.getOwnPropertyDescriptor(
+				HTMLElement.prototype,
+				"getBoundingClientRect",
+			);
+
+			Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+				configurable: true,
+				value: function getBoundingClientRectForDefaultStyleFixture(
+					this: HTMLElement,
+				) {
+					if (this.id === "default-styled-source") {
+						return {
+							x: 26,
+							y: 38,
+							left: 26,
+							top: 38,
+							right: 116,
+							bottom: 86,
+							width: 90,
+							height: 48,
+							toJSON: () => ({}),
+						};
+					}
+
+					if (typeof rectDescriptor?.value === "function") {
+						return rectDescriptor.value.call(this);
+					}
+
+					return {
+						x: 0,
+						y: 0,
+						left: 0,
+						top: 0,
+						right: 0,
+						bottom: 0,
+						width: 0,
+						height: 0,
+						toJSON: () => ({}),
+					};
+				},
+			});
+
+			try {
+				const html = `<div id="default-styled-source" style="background-color: rgb(91, 102, 113); border: 3px solid rgb(4, 5, 6);">Encoded foreground text</div>`;
+				const buffer = new TextEncoder().encode(html).buffer;
+				const doc = await HtmlParser.encode(buffer);
+				const result = await HtmlParser.decodeToHtml(doc.getIntermediateDocument());
+
+				expect(result).toContain(
+					"background-image:url(&#39;data:image/png;base64,DEFAULTSTYLE&#39;)",
+				);
+				expect(handle.calls).toHaveLength(1);
+
+				const capturedElement = handle.calls[0]?.element;
+				expect(capturedElement).toBeDefined();
+				if (!capturedElement) throw new Error("expected html2canvas call");
+				const [container] = getVisualContainers(capturedElement);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+
+				expect(container.style.backgroundColor).toBe("rgb(91, 102, 113)");
+				expect(container.style.left).toBe("26px");
+				expect(container.style.top).toBe("38px");
+				expect(container.style.width).toBe("90px");
+				expect(container.style.height).toBe("48px");
+				expect(capturedElement.textContent).toContain("Encoded foreground text");
+			} finally {
+				handle.restore();
+				restoreDocument();
+				if (rectDescriptor) {
+					Object.defineProperty(
+						HTMLElement.prototype,
+						"getBoundingClientRect",
+						rectDescriptor,
+					);
+				} else {
+					delete HTMLElement.prototype.getBoundingClientRect;
+				}
+			}
+		});
+	});
+
+	// ── broad CSS visual capture tests ────────────────────────────────────
+	// collectWhitelistedStyles() 使用视觉类别 allowlist + denylist 策略，
+	// 捕获更宽泛的视觉样式（background-image 渐变、opacity、padding、
+	// overflow、text-shadow、color、font-*、display 等），同时排除动画、
+	// 过渡、cursor 等属性。
+
+	it("captures broad computed visual styles: gradient background-image, background-size/position/repeat, opacity, padding, overflow, text-shadow, font/color, display", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("section");
+			source.style.backgroundColor = "rgb(255, 255, 255)";
+			source.style.setProperty(
+				"background-image",
+				"linear-gradient(to right, red, blue)",
+			);
+			source.style.backgroundSize = "cover";
+			source.style.backgroundPosition = "center center";
+			source.style.backgroundRepeat = "no-repeat";
+			source.style.opacity = "0.75";
+			source.style.padding = "12px";
+			source.style.overflow = "hidden";
+			source.style.textShadow = "1px 1px 2px rgb(0, 0, 0)";
+			source.style.color = "rgb(50, 60, 70)";
+			source.style.fontSize = "18px";
+			source.style.fontFamily = "serif";
+			source.style.fontWeight = "700";
+			source.style.display = "flex";
+			source.style.visibility = "visible";
+			defineRect(source, { left: 10, top: 10, width: 200, height: 80 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-broad-visual", width: 300, height: 120, texts: [] },
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const [container] = getVisualContainers(handle.element);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+
+				expect(container.style.backgroundColor).toBe("rgb(255, 255, 255)");
+
+				expect(container.style.backgroundImage).toBe(
+					"linear-gradient(to right, red, blue)",
+				);
+				expect(container.style.backgroundSize).toBe("cover");
+				expect(container.style.backgroundPosition).toBe("center center");
+				expect(container.style.backgroundRepeat).toBe("no-repeat");
+				expect(container.style.opacity).toBe("0.75");
+				expect(container.style.padding).toBe("12px");
+				expect(container.style.overflow).toBe("hidden");
+				expect(container.style.textShadow).toBe("1px 1px 2px rgb(0, 0, 0)");
+				expect(container.style.color).toBe("rgb(50, 60, 70)");
+				expect(container.style.fontSize).toBe("18px");
+				expect(container.style.fontFamily).toBe("serif");
+				expect(container.style.fontWeight).toBe("700");
+				expect(container.style.display).toBe("flex");
+				expect(container.style.visibility).toBe("visible");
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	it("threads broad CSS through encoded background thumbnail capture", async () => {
+		await withDomDocument(async ({ document, HTMLElement }) => {
+			const restoreDocument = exposeGlobalDocument(document);
+			const handle = installFakeHtml2Canvas({
+				dataUrl: "data:image/png;base64,BROADWIDTH",
+			});
+			const rectDescriptor = Object.getOwnPropertyDescriptor(
+				HTMLElement.prototype,
+				"getBoundingClientRect",
+			);
+
+			Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+				configurable: true,
+				value: function getBoundingClientRectForBroadFixture(this: HTMLElement) {
+					if (this.id === "broad-source") {
+						return {
+							x: 18,
+							y: 24,
+							left: 18,
+							top: 24,
+							right: 178,
+							bottom: 84,
+							width: 160,
+							height: 60,
+							toJSON: () => ({}),
+						};
+					}
+
+					if (typeof rectDescriptor?.value === "function") {
+						return rectDescriptor.value.call(this);
+					}
+
+					return {
+						x: 0,
+						y: 0,
+						left: 0,
+						top: 0,
+						right: 0,
+						bottom: 0,
+						width: 0,
+						height: 0,
+						toJSON: () => ({}),
+					};
+				},
+			});
+
+			try {
+				const html = [
+					'<section id="broad-source" style="',
+					'background-color: rgb(245, 246, 247);',
+					'opacity: 0.72;',
+					'padding: 14px;',
+					'overflow: hidden;',
+					'text-shadow: 1px 1px 2px rgb(0, 0, 0);',
+					'color: rgb(12, 34, 56);',
+					'font-size: 21px;',
+					'font-weight: 700;',
+					'display: flex;',
+					'">Encoded foreground text</section>',
+				].join("");
+				const buffer = new TextEncoder().encode(html).buffer;
+				const doc = await HtmlParser.encode(buffer, { snapshotWidth: 640 });
+				const result = await HtmlParser.decodeToHtml(doc.getIntermediateDocument(), {
+					background: { excludeTextFromBackground: true },
+				});
+
+				expect(result).toContain(
+					"background-image:url(&#39;data:image/png;base64,BROADWIDTH&#39;)",
+				);
+				expect(handle.calls).toHaveLength(1);
+				expect(handle.calls[0]?.options).toEqual({
+					backgroundColor: "#ffffff",
+					scale: 0.3,
+					useCORS: true,
+				});
+
+				const capturedElement = handle.calls[0]?.element;
+				expect(capturedElement).toBeDefined();
+				if (!capturedElement) throw new Error("expected html2canvas call");
+				const [container] = getVisualContainers(capturedElement);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+
+				expect(container.style.backgroundColor).toBe("rgb(245, 246, 247)");
+				expect(container.style.opacity).toBe("0.72");
+				expect(container.style.padding).toBe("14px");
+				expect(container.style.overflow).toBe("hidden");
+				expect(container.style.textShadow).toBe("1px 1px 2px rgb(0, 0, 0)");
+				expect(container.style.color).toBe("rgb(12, 34, 56)");
+				expect(container.style.fontSize).toBe("21px");
+				expect(container.style.fontWeight).toBe("700");
+				expect(container.style.display).toBe("flex");
+				expect(capturedElement.textContent).not.toContain(
+					"Encoded foreground text",
+				);
+			} finally {
+				handle.restore();
+				restoreDocument();
+				if (rectDescriptor) {
+					Object.defineProperty(
+						HTMLElement.prototype,
+						"getBoundingClientRect",
+						rectDescriptor,
+					);
+				} else {
+					delete HTMLElement.prototype.getBoundingClientRect;
+				}
+			}
+		});
+	});
+
+	it("continues capturing existing whitelist properties: border, background-color, border-radius, box-shadow, outline", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("div");
+			Object.assign(source.style, {
+				backgroundColor: "rgb(10, 20, 30)",
+				borderTopWidth: "1px",
+				borderTopStyle: "solid",
+				borderTopColor: "rgb(1, 2, 3)",
+				borderRightWidth: "2px",
+				borderRightStyle: "dashed",
+				borderRightColor: "rgb(4, 5, 6)",
+				borderBottomWidth: "3px",
+				borderBottomStyle: "double",
+				borderBottomColor: "rgb(7, 8, 9)",
+				borderLeftWidth: "4px",
+				borderLeftStyle: "solid",
+				borderLeftColor: "rgb(10, 11, 12)",
+				borderTopLeftRadius: "5px",
+				borderTopRightRadius: "6px",
+				borderBottomRightRadius: "7px",
+				borderBottomLeftRadius: "8px",
+				boxShadow: "1px 2px 3px rgb(9, 8, 7)",
+				outlineWidth: "2px",
+				outlineStyle: "solid",
+				outlineColor: "rgb(12, 13, 14)",
+			});
+			defineRect(source, { left: 5, top: 5, width: 100, height: 50 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-existing", width: 200, height: 100, texts: [] },
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const [container] = getVisualContainers(handle.element);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+
+				expect(container.style.backgroundColor).toBe("rgb(10, 20, 30)");
+				expect(container.style.borderTopWidth).toBe("1px");
+				expect(container.style.borderTopStyle).toBe("solid");
+				expect(container.style.borderTopColor).toBe("rgb(1, 2, 3)");
+				expect(container.style.borderRightWidth).toBe("2px");
+				expect(container.style.borderRightStyle).toBe("dashed");
+				expect(container.style.borderRightColor).toBe("rgb(4, 5, 6)");
+				expect(container.style.borderBottomWidth).toBe("3px");
+				expect(container.style.borderBottomStyle).toBe("double");
+				expect(container.style.borderBottomColor).toBe("rgb(7, 8, 9)");
+				expect(container.style.borderLeftWidth).toBe("4px");
+				expect(container.style.borderLeftStyle).toBe("solid");
+				expect(container.style.borderLeftColor).toBe("rgb(10, 11, 12)");
+				expect(container.style.borderTopLeftRadius).toBe("5px");
+				expect(container.style.borderTopRightRadius).toBe("6px");
+				expect(container.style.borderBottomRightRadius).toBe("7px");
+				expect(container.style.borderBottomLeftRadius).toBe("8px");
+				expect(container.style.boxShadow).toBe("1px 2px 3px rgb(9, 8, 7)");
+				expect(container.style.outlineWidth).toBe("2px");
+				expect(container.style.outlineStyle).toBe("solid");
+				expect(container.style.outlineColor).toBe("rgb(12, 13, 14)");
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	it("denylist: transition, animation, cursor, user-select, will-change, vendor-internal properties are NOT captured", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("div");
+			source.style.backgroundColor = "rgb(200, 200, 200)";
+			source.style.transition = "all 0.3s ease";
+			source.style.animation = "fadeIn 1s infinite";
+			source.style.cursor = "pointer";
+			source.style.userSelect = "none";
+			source.style.willChange = "transform";
+			defineRect(source, { left: 10, top: 10, width: 80, height: 40 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-denylist", width: 200, height: 100, texts: [] },
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const [container] = getVisualContainers(handle.element);
+				expect(container).toBeDefined();
+				if (!container) throw new Error("expected visual container");
+
+				const styleText = container.getAttribute("style") ?? "";
+
+				// pointer-events 由容器创建代码设置为 'none'，不在 denylist 断言范围内
+				expect(container.style.transition).toBe("");
+				expect(styleText).not.toContain("transition");
+				expect(container.style.animation).toBe("");
+				expect(styleText).not.toContain("animation");
+				expect(container.style.cursor).toBe("");
+				expect(styleText).not.toContain("cursor");
+				expect(container.style.userSelect).toBe("");
+				expect(styleText).not.toContain("user-select");
+				expect(container.style.willChange).toBe("");
+				expect(styleText).not.toContain("will-change");
+
+				expect(styleText).not.toContain("-internal-");
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
+	it("pseudo-elements (::before, ::after) are explicitly out of scope", async () => {
+		await withDomDocument(async ({ document }) => {
+			const source = document.createElement("div");
+			source.style.backgroundColor = "rgb(100, 100, 100)";
+			defineRect(source, { left: 0, top: 0, width: 50, height: 50 });
+			document.body.appendChild(source);
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-pseudo", width: 100, height: 100, texts: [] },
+				document,
+				{ excludeTextFromBackground: true, sourceDoc: document },
+			);
+
+			try {
+				const containers = getVisualContainers(handle.element);
+				expect(containers).toHaveLength(1);
+			} finally {
+				handle.cleanup();
 			}
 		});
 	});

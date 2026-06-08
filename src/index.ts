@@ -86,7 +86,28 @@ export type Html2CanvasLike = (
 	options?: Record<string, unknown>,
 ) => Promise<{ toDataURL(type?: string): string }>;
 export type Html2CanvasLoader = () => Promise<Html2CanvasLike>;
-export type EncodeOptions = { excludeSelectors?: string[] };
+export type EncodeOptions = {
+	excludeSelectors?: string[];
+	snapshotWidth?: number;
+};
+
+function resolveSnapshotWidth(
+	options?: EncodeOptions,
+): number | undefined {
+	const value = options?.snapshotWidth;
+	if (value === undefined) return undefined;
+
+	if (
+		!Number.isFinite(value) ||
+		!Number.isInteger(value) ||
+		value < 100 ||
+		value > 10000
+	) {
+		throw new Error(`Invalid snapshotWidth: ${value}`);
+	}
+
+	return value;
+}
 
 function buildExcludeMatcher(
 	doc: Document,
@@ -105,6 +126,17 @@ function buildExcludeMatcher(
 	});
 
 	return (el) => selectors.some((s) => el.matches(s) || !!el.closest(s));
+}
+
+function hasInlineBackgroundImage(
+	doc: Document,
+	excludeMatcher: (el: Element) => boolean = () => false,
+): boolean {
+	return Array.from(doc.querySelectorAll<HTMLElement>("[style]")).some((el) => {
+		if (excludeMatcher(el)) return false;
+		const backgroundImage = el.style.backgroundImage.trim().toLowerCase();
+		return backgroundImage !== "" && backgroundImage !== "none";
+	});
 }
 
 let html2canvasLoaderOverride: Html2CanvasLoader | null = null;
@@ -139,14 +171,18 @@ function buildLazyThumbnailFn(
 	height: number,
 	sourceDoc?: Document,
 	styleContainers?: readonly WhitelistedStyleContainerModel[],
+	snapshotWidth?: number,
+	ownerDocument?: Document,
 ): (
 	scale: number,
 	options?: BackgroundDecodeOptions,
 ) => Promise<IntermediateImage | undefined> {
 	let cachedThumbnail: IntermediateImage | undefined;
 	let cachedScale: number | undefined;
+	let cachedSnapshotWidth: number | undefined;
 	let inFlight: Promise<IntermediateImage | undefined> | null = null;
 	let inFlightScale: number | undefined;
+	let inFlightSnapshotWidth: number | undefined;
 	if (sourceDoc) {
 		thumbnailSourceDocuments.set(page, sourceDoc);
 	}
@@ -163,7 +199,8 @@ function buildLazyThumbnailFn(
 		if (
 			cachedThumbnail &&
 			cachedScale !== undefined &&
-			cachedScale >= effectiveScale
+			cachedScale >= effectiveScale &&
+			cachedSnapshotWidth === snapshotWidth
 		) {
 			return cachedThumbnail;
 		}
@@ -171,12 +208,14 @@ function buildLazyThumbnailFn(
 		if (
 			inFlight &&
 			inFlightScale !== undefined &&
-			inFlightScale >= effectiveScale
+			inFlightScale >= effectiveScale &&
+			inFlightSnapshotWidth === snapshotWidth
 		) {
 			return inFlight;
 		}
 
 		const localScale = effectiveScale;
+		const localSnapshotWidth = snapshotWidth;
 		let localPromise: Promise<IntermediateImage | undefined> =
 			Promise.resolve(undefined);
 		localPromise = (async () => {
@@ -187,17 +226,22 @@ function buildLazyThumbnailFn(
 					images,
 					width,
 					height,
-			localScale,
-			options,
-			sourceDoc ?? thumbnailSourceDocuments.get(page),
-			styleContainers ?? thumbnailStyleContainers.get(page),
-		);
+					localScale,
+					options,
+					sourceDoc ?? thumbnailSourceDocuments.get(page),
+					styleContainers ?? thumbnailStyleContainers.get(page),
+					localSnapshotWidth,
+					ownerDocument,
+				);
 				if (
 					thumbnailImage &&
-					(cachedScale === undefined || localScale >= cachedScale)
+					(cachedScale === undefined ||
+						localScale >= cachedScale ||
+						cachedSnapshotWidth !== localSnapshotWidth)
 				) {
 					cachedThumbnail = thumbnailImage;
 					cachedScale = localScale;
+					cachedSnapshotWidth = localSnapshotWidth;
 					(page as unknown as { _thumbnail?: IntermediateImage })._thumbnail =
 						thumbnailImage;
 				}
@@ -206,12 +250,14 @@ function buildLazyThumbnailFn(
 				if (inFlight === localPromise) {
 					inFlight = null;
 					inFlightScale = undefined;
+					inFlightSnapshotWidth = undefined;
 				}
 			}
 		})();
 
 		inFlight = localPromise;
 		inFlightScale = localScale;
+		inFlightSnapshotWidth = localSnapshotWidth;
 		return localPromise;
 	};
 }
@@ -227,12 +273,14 @@ async function captureThumbnail(
 	options?: BackgroundDecodeOptions,
 	sourceDoc?: Document,
 	styleContainers?: readonly WhitelistedStyleContainerModel[],
+	snapshotWidth?: number,
+	ownerDocument?: Document,
 ): Promise<IntermediateImage | undefined> {
 	await Promise.resolve();
 	let handle: OffscreenPageHandle | undefined;
 
 	try {
-		const doc = globalThis.document;
+		const doc = ownerDocument ?? globalThis.document;
 		if (!doc) {
 			devConsoleLog("[encode] thumbnail capture skipped: document unavailable");
 			return undefined;
@@ -249,15 +297,21 @@ async function captureThumbnail(
 				excludeImagesFromBackground: options?.excludeImagesFromBackground,
 				sourceDoc: effectiveSourceDoc,
 				styleContainers: effectiveStyleContainers,
+				snapshotWidth,
 			},
 		);
 		const loader = __getHtml2CanvasLoader();
 		const html2canvas = await loader();
-		const canvas = await html2canvas(handle.element, {
+		const canvasOptions: Record<string, unknown> = {
 			backgroundColor: "#ffffff",
 			scale,
 			useCORS: true,
-		});
+		};
+		if (snapshotWidth !== undefined) {
+			canvasOptions.width = snapshotWidth;
+			canvasOptions.windowWidth = snapshotWidth;
+		}
+		const canvas = await html2canvas(handle.element, canvasOptions);
 		const dataUrl = canvas.toDataURL("image/png");
 		return new IntermediateImage({
 			id: `${page.id}-thumbnail`,
@@ -1585,6 +1639,7 @@ export class HtmlParser extends DocumentParser {
 			iframeDocument: Document;
 			iframeWindow: Window;
 		}) => T | Promise<T>,
+		width = 1024,
 	): Promise<T> {
 		// 验证必需的 DOM API
 		const hostDocument = resolveIframeHostDocument();
@@ -1599,7 +1654,7 @@ export class HtmlParser extends DocumentParser {
 		iframe.style.position = "absolute";
 		iframe.style.left = "-10000px";
 		iframe.style.top = "0";
-		iframe.style.width = "1024px";
+		iframe.style.width = `${width}px`;
 		iframe.style.height = "2048px";
 		iframe.style.border = "0";
 		iframe.style.opacity = "0";
@@ -1868,6 +1923,7 @@ export class HtmlParser extends DocumentParser {
 		doc: Document,
 		id: string,
 		excludeMatcher: (el: Element) => boolean = () => false,
+		width = 1024,
 	): Promise<{
 		title: string;
 		texts: IntermediateText[];
@@ -1879,7 +1935,7 @@ export class HtmlParser extends DocumentParser {
 		const title = doc.title || "Untitled HTML";
 		const sourceOrderMap = buildDomSourceOrderMap(doc);
 
-		doc.documentElement.style.width = "1024px";
+		doc.documentElement.style.width = `${width}px`;
 		doc.body.style.margin = "0";
 		doc.body.style.padding = "0";
 
@@ -2036,25 +2092,35 @@ export class HtmlParser extends DocumentParser {
 		let pageWidth = 800;
 		let pageHeight = 0;
 		let thumbnailSourceDoc: Document | undefined;
+		let thumbnailOwnerDoc: Document | undefined;
 		let capturedStyleContainers: WhitelistedStyleContainerModel[] | undefined;
+		let preloadThumbnail = false;
+		const snapshotWidth = resolveSnapshotWidth(options);
 
 		const result = await HtmlParser.withIframeDocument(
 			html,
-			async ({ iframeDocument }) => {
+			async ({ iframe, iframeDocument }) => {
 				thumbnailSourceDoc = iframeDocument;
+				thumbnailOwnerDoc = iframe.ownerDocument;
 				const excludeMatcher = buildExcludeMatcher(
 					iframeDocument,
 					options?.excludeSelectors,
+				);
+				preloadThumbnail = hasInlineBackgroundImage(
+					iframeDocument,
+					excludeMatcher,
 				);
 				const collected = await HtmlParser.collectTextsFromDocument(
 					iframeDocument,
 					id,
 					excludeMatcher,
+					snapshotWidth,
 				);
 				capturedStyleContainers =
 					captureWhitelistedStyleContainerModels(iframeDocument);
 				return collected;
 			},
+			snapshotWidth,
 		);
 		title = result.title || title;
 		texts = result.texts;
@@ -2103,6 +2169,8 @@ export class HtmlParser extends DocumentParser {
 							pageHeight,
 							thumbnailSourceDoc,
 							capturedStyleContainers,
+							snapshotWidth,
+							thumbnailOwnerDoc,
 						),
 					);
 					return page;
@@ -2110,6 +2178,10 @@ export class HtmlParser extends DocumentParser {
 			},
 		];
 		const pagesMap = IntermediatePageMap.makeByInfoList(infoList);
+		if (preloadThumbnail) {
+			const page = await pagesMap.getPageByPageNumber(1);
+			await page?.getThumbnail(0.3);
+		}
 		const intermediateDocument = new IntermediateDocument({
 			id: workerPayload.id,
 			title: workerPayload.title,

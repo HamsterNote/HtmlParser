@@ -1,0 +1,48 @@
+Task 4 Evidence: RED CSS Visual Capture Tests
+==============================================
+Date: 2026-06-08
+File: src/__tests__/renderer.test.ts
+
+## Test: "captures broad computed visual styles: gradient background-image, background-size/position/repeat, opacity, padding, overflow, text-shadow, font/color, display"
+
+Status: FAIL (RED) - Expected, as production code does not yet capture these properties.
+
+Failure output:
+  expect(received).toBe(expected) // Object.is equality
+
+  Expected: "linear-gradient(to right, rgb(255, 0, 0), rgb(0, 0, 255))"
+  Received: ""
+
+  at src/__tests__/renderer.test.ts:1781:45
+
+Root cause: `collectWhitelistedStyles()` in `src/pageThumbnailDom.ts:83-128` only captures:
+- background-color
+- border-{side}-width/style/color
+- border-{corner}-radius
+- box-shadow
+- outline-width/style/color
+
+Properties NOT captured (will be added in Task 5):
+- background-image (linear-gradient)
+- background-size
+- background-position
+- background-repeat
+- opacity
+- padding
+- overflow
+- text-shadow
+- color
+- font-size, font-family, font-weight
+- display
+- visibility
+
+## Test: "continues capturing existing whitelist properties"
+
+Status: PASS - Confirms existing whitelist properties still work correctly.
+
+## Test: "pseudo-elements (::before, ::after) are explicitly out of scope"
+
+Status: PASS - Confirms TreeWalker only traverses real DOM nodes.
+
+## Overall Test Results
+Tests: 1 failed, 40 passed, 41 total

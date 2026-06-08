@@ -81,6 +81,23 @@
             data-role="exclude-selectors"
             value='["body > :not(.container)", ".container > :not(#sample-content)"]'
           />
+          <label class="exclude-selector-label" for="snapshot-width">
+            Snapshot width (px)
+          </label>
+          <p class="input-hint">
+            Optional. Override the snapshot width used when encoding CSS
+            backgrounds. Leave blank to use the default.
+          </p>
+          <input
+            id="snapshot-width"
+            class="exclude-selector-input"
+            data-role="snapshot-width"
+            type="number"
+            min="100"
+            max="10000"
+            step="1"
+            placeholder="1024"
+          />
         </div>
         <textarea
           class="json-input"

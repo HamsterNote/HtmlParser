@@ -1,4 +1,6 @@
-import { IntermediatePage, IntermediateText, IntermediateImage, normalizeDecodeTextControl } from '../dist/index.js'
+import { IntermediateImage, IntermediatePage, IntermediateText, normalizeDecodeTextControl } from '../dist/index.js'
+
+const DEFAULT_THUMBNAIL_QUALITY = 0.3
 
 // duck-typing 鉴别函数（与 src/intermediateTextGuard.ts 逻辑一致）
 function isIntermediateTextLike(value) {
@@ -63,7 +65,15 @@ function clonePage(page) {
   }
 }
 
-async function resolvePages(intermediate) {
+function resolveThumbnailQuality(options) {
+  const thumbnailQuality = options?.thumbnailQuality
+  return Number.isFinite(thumbnailQuality) && thumbnailQuality > 0
+    ? thumbnailQuality
+    : DEFAULT_THUMBNAIL_QUALITY
+}
+
+async function resolvePages(intermediate, options = {}) {
+  const thumbnailQuality = resolveThumbnailQuality(options)
   const pages = await intermediate.pages
   return Promise.all(
     pages.map(async (page) => {
@@ -88,7 +98,7 @@ async function resolvePages(intermediate) {
 
       let thumbnail = page.thumbnail
       if (thumbnail == null && typeof page.getThumbnail === 'function') {
-        thumbnail = await page.getThumbnail(0.3)
+        thumbnail = await page.getThumbnail(thumbnailQuality)
       }
 
       return clonePage({
@@ -105,7 +115,7 @@ async function resolvePages(intermediate) {
   )
 }
 
-export async function serializeIntermediate(intermediate) {
+export async function serializeIntermediate(intermediate, options = {}) {
   const outline =
     typeof intermediate.getOutline === 'function'
       ? (intermediate.getOutline() ?? [])
@@ -115,7 +125,7 @@ export async function serializeIntermediate(intermediate) {
     id: intermediate.id,
     title: intermediate.title,
     outline: outline.map(cloneOutlineItem),
-    pages: await resolvePages(intermediate)
+    pages: await resolvePages(intermediate, options)
   }
 }
 

@@ -1,0 +1,38 @@
+F1/F2 Final Verification Fixes
+Date: 2026-06-08
+
+Scope
+- F1 Plan Compliance: removed public export leak for resolveSnapshotWidth and added missing OpenSpec proposal/scope detail.
+- F2 Code Quality: aligned demo snapshotWidth validation with core contract and cleaned stale RED-state test text / avoidable unsafe casts.
+- F3 behavior intentionally unchanged; demoPreview.js was not modified.
+
+Code fixes
+- src/index.ts: changed `export function resolveSnapshotWidth(...)` to internal `function resolveSnapshotWidth(...)` while keeping EncodeOptions.snapshotWidth?: number public.
+- demo/demo.js: parseSnapshotWidth now requires Number.isFinite(value), Number.isInteger(value), and range 100 <= value <= 10000; invalid values throw `Invalid snapshotWidth: ${value}`; fractional values are no longer floored.
+- src/__tests__/demoEncodeSnapshotWidth.test.ts: removed outdated RED/must-fail wording, updated simulated demo validation to strict integer/range behavior, replaced avoidable `as any` / non-null assertion usage with happy-dom-compatible typed helpers.
+- src/__tests__/htmlParser.test.ts: replaced `options as any` in snapshotWidth helper with `EncodeOptions`.
+- openspec/changes/add-css-background-snapshot-width/proposal.md: added high-level proposal.
+- openspec/changes/add-css-background-snapshot-width/scope.md: documented broad CSS capture categories, filtering, denylist, demoPreview sandbox non-goal, and pseudo-element non-goal.
+
+Diagnostics
+- lsp_diagnostics src/index.ts: no diagnostics found.
+- lsp_diagnostics demo/demo.js: no diagnostics found.
+- lsp_diagnostics src/__tests__/demoEncodeSnapshotWidth.test.ts: no diagnostics found.
+- lsp_diagnostics src/__tests__/htmlParser.test.ts: no diagnostics found.
+
+Build/export evidence
+- npm run build:all: passed with rolldown v1.0.0-beta.58.
+- grep dist/index.d.ts for `resolveSnapshotWidth|export { ... resolveSnapshotWidth`: no matches found.
+- grep dist/index.js for final export list: export list includes HtmlParser, EncodeOptions-related public API, setHtml2CanvasLoader, setIframeHostDocument, etc.; it does not include resolveSnapshotWidth.
+- grep dist/index.js for resolveSnapshotWidth still finds internal implementation/call only, which is expected because the helper is still used inside the bundle.
+
+Command verification
+- npm test: passed, 15 suites / 202 tests.
+- npm run lint: passed, output `no-lint`.
+- npm run build:all: passed.
+- npm run test:e2e: passed, 17 tests.
+
+Notes
+- Maintained API compatibility: EncodeOptions still exposes `snapshotWidth?: number`.
+- No archive files were modified.
+- No demoPreview.js sandbox settings were changed.

@@ -7,7 +7,7 @@ import {
   TextDir
 } from '@hamster-note/types'
 import { HtmlDocument } from '../HtmlDocument.js'
-import { HtmlParser, setHtml2CanvasLoader } from '../index'
+import { type EncodeOptions, HtmlParser, setHtml2CanvasLoader } from '../index'
 import { withDomDocument, withGlobalsRemoved } from '../testUtils/domTestUtils.js'
 import { installFakeHtml2Canvas } from '../testUtils/html2canvasTestUtils.js'
 import { computeTargetHeight, computeTargetWidth } from '../textGeometry.js'
@@ -1406,6 +1406,72 @@ describe('HtmlParser', () => {
     })
   })
 
+  it('encode isolates lazy thumbnail captures for different snapshotWidth values', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const calls: Array<Record<string, unknown> | undefined> = []
+
+      setHtml2CanvasLoader(async () => async (_element, options) => {
+        calls.push(options)
+        const widthLabel = options?.width ?? 'default'
+        return {
+          toDataURL: () => `data:image/png;base64,WIDTH_${widthLabel}`
+        }
+      })
+
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const narrowDoc = await HtmlParser.encode(buffer, { snapshotWidth: 320 })
+        const wideDoc = await HtmlParser.encode(buffer, { snapshotWidth: 640 })
+        const narrowPage = (await narrowDoc.getIntermediateDocument().pages)[0]
+        const widePage = (await wideDoc.getIntermediateDocument().pages)[0]
+
+        const firstNarrow = await narrowPage.getThumbnail(0.3)
+        const secondNarrow = await narrowPage.getThumbnail(0.3)
+        const wide = await widePage.getThumbnail(0.3)
+
+        expect(calls).toHaveLength(2)
+        expect(calls.map((options) => options?.width)).toEqual([320, 640])
+        expect(calls.map((options) => options?.windowWidth)).toEqual([320, 640])
+        expect(firstNarrow).toEqual(secondNarrow)
+        expect(firstNarrow?.src).toBe('data:image/png;base64,WIDTH_320')
+        expect(wide?.src).toBe('data:image/png;base64,WIDTH_640')
+      } finally {
+        setHtml2CanvasLoader(null)
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode with snapshotWidth feeds decodeToHtml background output end to end', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas({ dataUrl: 'data:image/png;base64,WIDTH640' })
+
+      try {
+        const buffer = new TextEncoder().encode('<p>Snapshot width output</p>').buffer
+        const doc = await HtmlParser.encode(buffer, { snapshotWidth: 640 })
+        const html = await HtmlParser.decodeToHtml(doc.getIntermediateDocument())
+
+        expect(html).toContain(
+          "background-image:url(&#39;data:image/png;base64,WIDTH640&#39;)"
+        )
+        expect(handle.calls).toHaveLength(1)
+        expect(handle.calls[0]?.options).toEqual({
+          backgroundColor: '#ffffff',
+          scale: 0.3,
+          useCORS: true,
+          width: 640,
+          windowWidth: 640
+        })
+        expect(handle.calls[0]?.element.style.width).toBe('640px')
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
   it('encode recaptures page thumbnail when a larger scale is requested', async () => {
     await withDomDocument(async ({ document }) => {
       const restoreDocument = exposeGlobalDocument(document)
@@ -1661,6 +1727,76 @@ describe('HtmlParser', () => {
         expect(texts.map((text) => text.content)).toEqual(['Keep once'])
         expect(texts.some((text) => text.content.includes('Drop once'))).toBe(false)
         expect(images).toHaveLength(0)
+      })
+    })
+  })
+
+  describe('HtmlParser.encode snapshotWidth', () => {
+    const encodeHtmlWith = (html: string, options: EncodeOptions) =>
+      HtmlParser.encode(new TextEncoder().encode(html).buffer, options)
+
+    describe('valid snapshotWidth values', () => {
+      const validValues = [100, 640, 10000]
+
+      validValues.forEach((width) => {
+        it(`accepts snapshotWidth=${width} and passes it to html2canvas`, async () => {
+          const handle = installFakeHtml2Canvas()
+          try {
+            await withDomDocument(async () => {
+              const html = '<div style="background-image:url(data:image/png;base64,AAAA)">Content</div>'
+              await encodeHtmlWith(html, { snapshotWidth: width })
+              expect(handle.calls.length).toBeGreaterThan(0)
+              expect(handle.calls[0].options?.width).toBe(width)
+            })
+          } finally {
+            handle.restore()
+          }
+        })
+      })
+    })
+
+    describe('omitted/undefined snapshotWidth', () => {
+      it('accepts undefined snapshotWidth with unchanged behavior', async () => {
+        const handle = installFakeHtml2Canvas()
+        try {
+          await withDomDocument(async () => {
+            const html = '<div style="background-image:url(data:image/png;base64,AAAA)">Content</div>'
+            await encodeHtmlWith(html, {})
+            await encodeHtmlWith(html, { snapshotWidth: undefined })
+            expect(handle.calls[0].options?.width).toBeUndefined()
+          })
+        } finally {
+          handle.restore()
+        }
+      })
+    })
+
+    describe('invalid snapshotWidth values', () => {
+      const invalidCases = [
+        { value: 99, description: 'below minimum (99)' },
+        { value: 10001, description: 'above maximum (10001)' },
+        { value: 0, description: 'zero' },
+        { value: -1, description: 'negative' },
+        { value: NaN, description: 'NaN' },
+        { value: Infinity, description: 'Infinity' },
+        { value: 1.5, description: 'decimal' },
+      ]
+
+      invalidCases.forEach(({ value, description }) => {
+        it(`rejects snapshotWidth that is ${description}`, async () => {
+          await withDomDocument(async () => {
+            const html = '<div>Content</div>'
+            await expect(
+              encodeHtmlWith(html, { snapshotWidth: value })
+            ).rejects.toThrow(
+              expect.objectContaining({
+                message: expect.stringMatching(
+                  new RegExp(`Invalid snapshotWidth.*${String(value)}`)
+                )
+              })
+            )
+          })
+        })
       })
     })
   })

@@ -1,0 +1,53 @@
+Task 8 performance / payload budget evidence
+Date: 2026-06-08
+
+Baseline source:
+- Task 1 left behavioral baseline files under `openspec/changes/add-css-background-snapshot-width/evidence/`, but no numeric size/time file was present in `.omo/evidence`.
+- For a reproducible numeric comparison, this run uses the old-behavior equivalent path on the same styled fixture: omit `snapshotWidth` so iframe/root/html2canvas use default width behavior.
+- New path uses the same fixture with `{ snapshotWidth: 640 }`.
+
+Fixture:
+- Styled HTML section with inline background-image data URL, background-color, opacity, padding, overflow, color, font-size, font-weight, and display.
+- Fake html2canvas data URL fixed at `data:image/png;base64,` + 512 `A` bytes to avoid network and pixel noise.
+- Serialized output measured with `serializeIntermediate(doc.getIntermediateDocument())` and `JSON.stringify()` byte length.
+
+Command:
+node --input-type=module -e "... measure baseline omitted snapshotWidth and new snapshotWidth: 640 using dist/index.js + happy-dom ..."
+
+Results:
+- Baseline size: 1422 bytes
+- New size: 1422 bytes
+- Size ratio: 1.0000
+- Size budget target: <= 2.0
+- Size budget result: PASS
+
+- Baseline time: 54.89 ms
+- New time: 10.40 ms
+- Time ratio: 0.1895
+- Advisory time target: <= 1.5
+- Advisory time result: PASS
+
+Raw JSON result:
+{
+  "baseline": {
+    "label": "baseline-omitted-snapshotWidth",
+    "sizeBytes": 1422,
+    "timeMs": 54.89,
+    "pages": 1,
+    "thumbnailBytes": 534
+  },
+  "current": {
+    "label": "new-snapshotWidth-640",
+    "sizeBytes": 1422,
+    "timeMs": 10.4,
+    "pages": 1,
+    "thumbnailBytes": 534
+  },
+  "sizeRatio": 1,
+  "timeRatio": 0.1895,
+  "sizeBudgetPass": true,
+  "advisoryTimePass": true
+}
+
+Note:
+- Timing is advisory and noisy in local Node/happy-dom runs. The hard budget assertion is payload size; timing is recorded as requested and passed in this run.

@@ -310,6 +310,7 @@ describe('demo document serialization', () => {
   })
 
   it('serializeIntermediate preserves populated page thumbnail after lazy capture', async () => {
+    const thumbnailScales: number[] = []
     const intermediate = {
       id: 'thumbnail-doc',
       title: 'Thumbnail Document',
@@ -348,12 +349,16 @@ describe('demo document serialization', () => {
           getTexts: async function () {
             return this.texts
           },
-          getThumbnail: async () => 'data:image/png;base64,STORED'
+          getThumbnail: async (scale: number) => {
+            thumbnailScales.push(scale)
+            return 'data:image/png;base64,STORED'
+          }
         }
       ])
     }
 
     const serialized = await serializeIntermediate(intermediate)
+    expect(thumbnailScales).toEqual([0.3])
     expect(serialized.pages[0].thumbnail).toBe('data:image/png;base64,STORED')
 
     const parsed = parseSerializedDocument(serialized)
@@ -361,6 +366,36 @@ describe('demo document serialization', () => {
     const page = resolvedPages[0]
     const thumbnail = await page.getThumbnail(0.3)
     expect(thumbnail).toBe('data:image/png;base64,STORED')
+  })
+
+  it('serializeIntermediate uses requested thumbnailQuality for lazy thumbnail capture', async () => {
+    const thumbnailScales: number[] = []
+    const intermediate = {
+      id: 'thumbnail-quality-doc',
+      title: 'Thumbnail Quality Document',
+      getOutline: () => [],
+      pages: Promise.resolve([
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [],
+          thumbnail: undefined,
+          getThumbnail: async (scale: number) => {
+            thumbnailScales.push(scale)
+            return `data:image/png;base64,SCALE_${scale}`
+          }
+        }
+      ])
+    }
+
+    const serialized = await serializeIntermediate(intermediate, {
+      thumbnailQuality: 0.85
+    })
+
+    expect(thumbnailScales).toEqual([0.85])
+    expect(serialized.pages[0].thumbnail).toBe('data:image/png;base64,SCALE_0.85')
   })
 
   it('forwards textControl to injected decodeToHtml when serialized JSON has top-level textControl', async () => {

@@ -21,6 +21,10 @@ type ParsedSerializedPage = SerializedPage & {
   getThumbnail(scale?: number): Promise<string | undefined>
 }
 
+type SerializeIntermediateOptions = {
+  thumbnailQuality?: number
+}
+
 export type SerializedIntermediateDocument = {
   id: string
   title: string
@@ -50,7 +54,7 @@ export declare function serializeIntermediate(intermediate: {
   >
   getOutline?(): SerializedOutlineItem[] | undefined
   outline?: SerializedOutlineItem[]
-}): Promise<SerializedIntermediateDocument>
+}, options?: SerializeIntermediateOptions): Promise<SerializedIntermediateDocument>
 
 export type ParsedSerializedIntermediateDocument = {
   id: string
@@ -66,6 +70,11 @@ export type BackgroundDecodeOptions = {
   excludeTextFromBackground?: boolean
   /** 是否从背景图中排除图片，默认 false */
   excludeImagesFromBackground?: boolean
+}
+
+export type EncodeOptions = {
+  excludeSelectors?: string[]
+  snapshotWidth?: number
 }
 
 export type ParsedSerializedDocumentDecoder = (
