@@ -644,8 +644,11 @@ describe('demo document serialization', () => {
 
     const serialized = await serializeIntermediate(intermediate)
     // 序列化后 content 数组应保留 text → image → text 顺序
-    const pageContent = serialized.pages[0].content!
+    const pageContent = serialized.pages[0].content
     expect(pageContent).toBeDefined()
+    if (!pageContent) {
+      throw new Error('pageContent should be defined')
+    }
     expect(pageContent).toHaveLength(3)
     // 第一项是 text (有 content 字段)，第二项是 image (有 src 字段)，第三项是 text
     expect(pageContent[0]).toHaveProperty('content', 'Before image')
