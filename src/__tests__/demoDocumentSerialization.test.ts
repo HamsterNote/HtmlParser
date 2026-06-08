@@ -875,7 +875,6 @@ describe('demo document serialization', () => {
 
     expect(receivedArgs).toHaveLength(2)
     const opts = receivedArgs[1] as Record<string, unknown>
-    // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
     const bg = opts.background as Record<string, unknown>
     expect(bg).toBeDefined()
     expect(bg).toMatchObject({ excludeImagesFromBackground: true })
@@ -932,7 +931,6 @@ describe('demo document serialization', () => {
 
     expect(receivedArgs).toHaveLength(2)
     const opts = receivedArgs[1] as Record<string, unknown>
-    // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
     const bg = opts.background as Record<string, unknown>
     expect(bg).toBeDefined()
     expect(bg.excludeImagesFromBackground).toBe(true)
@@ -949,7 +947,6 @@ describe('demo document serialization', () => {
         includeBackground: false,
         backgroundQuality: 0.8,
         excludeTextFromBackground: true,
-        // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
         excludeImagesFromBackground: true
       },
       pages: [
