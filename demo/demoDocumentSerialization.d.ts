@@ -64,6 +64,8 @@ export type BackgroundDecodeOptions = {
   includeBackground?: boolean
   backgroundQuality?: number
   excludeTextFromBackground?: boolean
+  /** 是否从背景图中排除图片，默认 false */
+  excludeImagesFromBackground?: boolean
 }
 
 export type ParsedSerializedDocumentDecoder = (

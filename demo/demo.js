@@ -121,17 +121,20 @@ const handleDecode = async () => {
     const bgIncludeCheckbox = document.querySelector('[data-role="bg-include"]')
     const bgQualitySlider = document.querySelector('[data-role="bg-quality"]')
     const bgExcludeTextCheckbox = document.querySelector('[data-role="bg-exclude-text"]')
+    const bgExcludeImagesCheckbox = document.querySelector('[data-role="bg-exclude-images"]')
 
     const includeBackground = bgIncludeCheckbox?.checked ?? true
     const backgroundQuality = parseFloat(bgQualitySlider?.value ?? '0.3')
     const excludeTextFromBackground = bgExcludeTextCheckbox?.checked ?? false
+    const excludeImagesFromBackground = bgExcludeImagesCheckbox?.checked ?? false
 
-    const hasCustomBg = !includeBackground || backgroundQuality !== 0.3 || excludeTextFromBackground
+    const hasCustomBg = !includeBackground || backgroundQuality !== 0.3 || excludeTextFromBackground || excludeImagesFromBackground
     if (hasCustomBg) {
       data.background = {
         includeBackground,
         backgroundQuality,
-        excludeTextFromBackground
+        excludeTextFromBackground,
+        excludeImagesFromBackground
       }
     }
 
@@ -179,17 +182,20 @@ const handleDecodeInput = async () => {
     const bgIncludeCheckbox = document.querySelector('[data-role="bg-include"]')
     const bgQualitySlider = document.querySelector('[data-role="bg-quality"]')
     const bgExcludeTextCheckbox = document.querySelector('[data-role="bg-exclude-text"]')
+    const bgExcludeImagesCheckbox = document.querySelector('[data-role="bg-exclude-images"]')
 
     const includeBackground = bgIncludeCheckbox?.checked ?? true
     const backgroundQuality = parseFloat(bgQualitySlider?.value ?? '0.3')
     const excludeTextFromBackground = bgExcludeTextCheckbox?.checked ?? false
+    const excludeImagesFromBackground = bgExcludeImagesCheckbox?.checked ?? false
 
-    const hasCustomBg = !includeBackground || backgroundQuality !== 0.3 || excludeTextFromBackground
+    const hasCustomBg = !includeBackground || backgroundQuality !== 0.3 || excludeTextFromBackground || excludeImagesFromBackground
     if (hasCustomBg) {
       data.background = {
         includeBackground,
         backgroundQuality,
-        excludeTextFromBackground
+        excludeTextFromBackground,
+        excludeImagesFromBackground
       }
     }
 
