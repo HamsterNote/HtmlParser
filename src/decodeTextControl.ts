@@ -26,6 +26,8 @@ export type BackgroundDecodeOptions = {
   backgroundQuality?: number
   /** 是否从背景图中排除生成的文本，默认 false */
   excludeTextFromBackground?: boolean
+  /** 是否从背景图中排除图片，默认 false */
+  excludeImagesFromBackground?: boolean
 }
 
 /** 解码选项 */

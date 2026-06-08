@@ -773,38 +773,25 @@ describe("decodeToHtml background options", () => {
 				...overrides,
 			});
 
-		type FutureOffscreenBackgroundOptions = NonNullable<
-			Parameters<typeof buildOffscreenPageElement>[2]
-		> & {
-			excludeImagesFromBackground?: boolean;
-		};
-
-		type FutureBackgroundDecodeOptions = BackgroundDecodeOptions & {
-			excludeImagesFromBackground?: boolean;
-		};
-
 		const imageExclusionOffscreenOptions = (
-			overrides: FutureOffscreenBackgroundOptions = {},
+			overrides: NonNullable<Parameters<typeof buildOffscreenPageElement>[2]> = {},
 		): Parameters<typeof buildOffscreenPageElement>[2] =>
 			({
 				...overrides,
-				// TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
 				excludeImagesFromBackground: true,
-			}) as FutureOffscreenBackgroundOptions;
+			});
 
 		const imageRenderingOffscreenOptions = (): Parameters<
 			typeof buildOffscreenPageElement
 		>[2] =>
 			({
-				// TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
 				excludeImagesFromBackground: false,
-			}) as FutureOffscreenBackgroundOptions;
+			});
 
 		const imageExclusionBackgroundOptions = (): BackgroundDecodeOptions =>
 			({
-				// TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
 				excludeImagesFromBackground: true,
-			}) as FutureBackgroundDecodeOptions;
+			});
 
 		const buildDocumentWithContent = (
 			text: IntermediateText,
