@@ -44,6 +44,48 @@ SIMPLE_DOCUMENT: dict[str, Any] = {
     ],
 }
 
+IMAGE_DOCUMENT: dict[str, Any] = {
+    "id": "e2e-json-image-doc",
+    "title": "E2E JSON Input Image Document",
+    "outline": [],
+    "pages": [
+        {
+            "id": "page-1",
+            "number": 1,
+            "width": 800,
+            "height": 600,
+            "texts": [
+                {
+                    "id": "text-1",
+                    "content": "E2E Image Background Flow",
+                    "fontSize": 16,
+                    "fontFamily": "sans-serif",
+                    "fontWeight": 400,
+                    "italic": False,
+                    "color": "#111111",
+                    "polygon": [[20, 32], [240, 32], [240, 56], [20, 56]],
+                    "lineHeight": 24,
+                    "ascent": 16,
+                    "descent": 8,
+                    "vertical": False,
+                    "dir": "ltr",
+                    "skew": 0,
+                    "isEOL": True,
+                }
+            ],
+            "images": [
+                {
+                    "id": "img-foreground",
+                    "src": "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==",
+                    "polygon": [[80, 96], [180, 96], [180, 156], [80, 156]],
+                    "opacity": 1,
+                }
+            ],
+            "thumbnail": None,
+        }
+    ],
+}
+
 
 def fill_json_input(page: Page, data: dict[str, Any] | str) -> None:
     """填充 JSON 输入框，并显式触发 input 事件模拟真实编辑。"""
@@ -105,6 +147,24 @@ def test_json_input_with_background_options(demo_page: Page) -> None:
     decode_input_and_wait(demo_page)
 
     expect(demo_page.locator('[data-role="preview"] iframe.preview-frame')).to_have_count(1)
+
+
+@pytest.mark.e2e
+def test_json_input_with_background_image_exclusion_keeps_foreground_image(demo_page: Page) -> None:
+    """验证排除背景图片开关默认关闭，开启后仍保留前景图片预览。"""
+    fill_json_input(demo_page, IMAGE_DOCUMENT)
+    bg_exclude_images = demo_page.locator('[data-role="bg-exclude-images"]')
+    expect(bg_exclude_images).to_be_visible()
+    assert bg_exclude_images.is_checked() is False
+
+    bg_exclude_images.check()
+    decode_input_and_wait(demo_page)
+
+    expect(demo_page.locator('[data-role="status"]')).to_contain_text("Decode ready")
+    srcdoc = get_preview_iframe_srcdoc(demo_page)
+    assert 'img class="hamster-note-image"' in srcdoc
+    assert 'id="img-foreground"' in srcdoc
+    assert "Decode failed" not in srcdoc
 
 
 @pytest.mark.e2e
