@@ -686,7 +686,7 @@ describe("decodeToHtml background options", () => {
 		});
 	});
 
-	// 回归测试：验证图片始终渲染，不受 excludeTextFromBackground 影响
+	// 回归测试：当 excludeImagesFromBackground 未启用时图片仍然渲染
 	it("buildOffscreenPageElement renders images regardless of excludeTextFromBackground", async () => {
 		const text = buildText([
 			[10, 20],
@@ -753,6 +753,267 @@ describe("decodeToHtml background options", () => {
 				normalHandle.cleanup();
 				excludedHandle.cleanup();
 			}
+		});
+	});
+
+	describe("excludeImagesFromBackground", () => {
+		const buildBackgroundImage = (
+			overrides: Partial<IntermediateImage> = {},
+		): IntermediateImage =>
+			new IntermediateImage({
+				id: "image-1",
+				src: "data:image/png;base64,TESTIMG",
+				polygon: [
+					[20, 30],
+					[120, 30],
+					[120, 80],
+					[20, 80],
+				],
+				opacity: 0.8,
+				...overrides,
+			});
+
+		type FutureOffscreenBackgroundOptions = NonNullable<
+			Parameters<typeof buildOffscreenPageElement>[2]
+		> & {
+			excludeImagesFromBackground?: boolean;
+		};
+
+		type FutureBackgroundDecodeOptions = BackgroundDecodeOptions & {
+			excludeImagesFromBackground?: boolean;
+		};
+
+		const imageExclusionOffscreenOptions = (
+			overrides: FutureOffscreenBackgroundOptions = {},
+		): Parameters<typeof buildOffscreenPageElement>[2] =>
+			({
+				...overrides,
+				// TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+				excludeImagesFromBackground: true,
+			}) as FutureOffscreenBackgroundOptions;
+
+		const imageRenderingOffscreenOptions = (): Parameters<
+			typeof buildOffscreenPageElement
+		>[2] =>
+			({
+				// TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+				excludeImagesFromBackground: false,
+			}) as FutureOffscreenBackgroundOptions;
+
+		const imageExclusionBackgroundOptions = (): BackgroundDecodeOptions =>
+			({
+				// TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+				excludeImagesFromBackground: true,
+			}) as FutureBackgroundDecodeOptions;
+
+		const buildDocumentWithContent = (
+			text: IntermediateText,
+			image: IntermediateImage,
+		): IntermediateDocument => {
+			const infoList = [
+				{
+					id: "page-with-image-content",
+					pageNumber: 1,
+					size: { x: 200, y: 200 },
+					getData: async () =>
+						new IntermediatePage({
+							id: "page-with-image-content",
+							number: 1,
+							width: 200,
+							height: 200,
+							content: [text, image],
+							thumbnail: undefined,
+						}),
+				},
+			];
+
+			return new IntermediateDocument({
+				id: "doc-with-image-content",
+				title: "Image Exclusion Routing Test",
+				pagesMap: IntermediatePageMap.makeByInfoList(infoList),
+			});
+		};
+
+		const readImageSnapshot = (element: Element): Record<string, string> => {
+			const img = element.querySelector(
+				"img.hamster-note-image",
+			) as HTMLImageElement | null;
+			expect(img).not.toBeNull();
+			if (!img) throw new Error("expected rendered background image");
+
+			return {
+				id: img.id,
+				src: img.src,
+				opacity: img.style.opacity,
+				left: img.style.left,
+				top: img.style.top,
+				width: img.style.width,
+				height: img.style.height,
+			};
+		};
+
+		it("buildOffscreenPageElement omits image elements when excludeImagesFromBackground is true", async () => {
+			const text = buildText([
+				[10, 20],
+				[110, 20],
+				[110, 60],
+				[10, 60],
+			]);
+			const image = buildBackgroundImage();
+
+			await withDomDocument(async ({ document }) => {
+				const handle = buildOffscreenPageElement(
+					{
+						id: "page-image-hidden",
+						width: 200,
+						height: 200,
+						texts: [text],
+						images: [image],
+					},
+					document,
+					imageExclusionOffscreenOptions(),
+				);
+
+				try {
+					expect(handle.element.querySelectorAll("img")).toHaveLength(0);
+					expect(
+						handle.element.querySelectorAll(".hamster-note-image"),
+					).toHaveLength(0);
+				} finally {
+					handle.cleanup();
+				}
+			});
+		});
+
+		it("buildOffscreenPageElement renders images when excludeImagesFromBackground is false or undefined", async () => {
+			const image = buildBackgroundImage();
+
+			await withDomDocument(async ({ document }) => {
+				const defaultHandle = buildOffscreenPageElement(
+					{
+						id: "page-image-default",
+						width: 200,
+						height: 200,
+						texts: [],
+						images: [image],
+					},
+					document,
+				);
+				const falseHandle = buildOffscreenPageElement(
+					{
+						id: "page-image-false",
+						width: 200,
+						height: 200,
+						texts: [],
+						images: [image],
+					},
+					document,
+					imageRenderingOffscreenOptions(),
+				);
+
+				try {
+					expect(defaultHandle.element.querySelectorAll("img")).toHaveLength(1);
+					expect(
+						defaultHandle.element.querySelectorAll(".hamster-note-image"),
+					).toHaveLength(1);
+					expect(falseHandle.element.querySelectorAll("img")).toHaveLength(1);
+					expect(
+						falseHandle.element.querySelectorAll(".hamster-note-image"),
+					).toHaveLength(1);
+					expect(readImageSnapshot(falseHandle.element)).toEqual(
+						readImageSnapshot(defaultHandle.element),
+					);
+				} finally {
+					defaultHandle.cleanup();
+					falseHandle.cleanup();
+				}
+			});
+		});
+
+		it("keeps text spans while omitting images for image-only background exclusion", async () => {
+			const text = buildText([
+				[10, 20],
+				[110, 20],
+				[110, 60],
+				[10, 60],
+			]);
+			const image = buildBackgroundImage();
+
+			await withDomDocument(async ({ document }) => {
+				const handle = buildOffscreenPageElement(
+					{
+						id: "page-image-only",
+						width: 200,
+						height: 200,
+						texts: [text],
+						images: [image],
+					},
+					document,
+					imageExclusionOffscreenOptions({ excludeTextFromBackground: false }),
+				);
+
+				try {
+					expect(
+						handle.element.querySelectorAll(".hamster-note-text"),
+					).toHaveLength(1);
+					expect(handle.element.querySelectorAll("img")).toHaveLength(0);
+					expect(
+						handle.element.querySelectorAll(".hamster-note-image"),
+					).toHaveLength(0);
+				} finally {
+					handle.cleanup();
+				}
+			});
+		});
+
+		it("routes image-only background exclusion through captureThumbnail instead of getThumbnail", async () => {
+			const text = buildText([
+				[10, 20],
+				[110, 20],
+				[110, 60],
+				[10, 60],
+			]);
+			const image = buildBackgroundImage();
+			const doc = buildDocumentWithContent(text, image);
+
+			await withDomDocument(async ({ document }) => {
+				const restoreDocument = exposeGlobalDocument(document);
+				const handle = installFakeHtml2Canvas();
+				const pages = await doc.pages;
+				const getThumbnailCalls: number[] = [];
+
+				(pages[0] as ThumbnailAwarePage).setGetThumbnail(
+					async (scale: number) => {
+						getThumbnailCalls.push(scale);
+						return makeThumbnail();
+					},
+				);
+
+				try {
+					const result = await HtmlParser.decodeToHtml(doc, {
+						background: imageExclusionBackgroundOptions(),
+					});
+
+					expect(result).toContain(
+						"background-image:url(&#39;data:image/png;base64,FAKE&#39;)",
+					);
+					expect(getThumbnailCalls).toHaveLength(0);
+					expect(handle.calls).toHaveLength(1);
+
+					const capturedElement = handle.calls[0]?.element;
+					expect(capturedElement).toBeDefined();
+					if (!capturedElement) throw new Error("expected html2canvas call");
+					expect(
+						capturedElement.querySelectorAll(".hamster-note-text"),
+					).toHaveLength(1);
+					expect(
+						capturedElement.querySelectorAll(".hamster-note-image"),
+					).toHaveLength(0);
+				} finally {
+					handle.restore();
+					restoreDocument();
+				}
+			});
 		});
 	});
 
