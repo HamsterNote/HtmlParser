@@ -823,6 +823,190 @@ describe('demo document serialization', () => {
     expect(html).toContain('img-old')
   })
 
+  // ---- TDD: background option forwarding tests (excludeImagesFromBackground) ----
+
+  it('forwards excludeImagesFromBackground through data.background to injected decodeToHtml', async () => {
+    const serialized = {
+      id: 'bg-exclude-img-doc',
+      title: 'BG Exclude Images',
+      outline: [],
+      background: { excludeImagesFromBackground: true },
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'BG option forwarding',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 160,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [160, 0], [160, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+
+    expect(receivedArgs).toHaveLength(2)
+    const opts = receivedArgs[1] as Record<string, unknown>
+    // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+    const bg = opts.background as Record<string, unknown>
+    expect(bg).toBeDefined()
+    expect(bg).toMatchObject({ excludeImagesFromBackground: true })
+  })
+
+  it('forwards excludeImagesFromBackground independently without excludeTextFromBackground', async () => {
+    const serialized = {
+      id: 'bg-img-only-doc',
+      title: 'BG Image Only',
+      outline: [],
+      // 仅设置 excludeImagesFromBackground，不设置 excludeTextFromBackground
+      background: { excludeImagesFromBackground: true },
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'Independent forwarding',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 176,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [176, 0], [176, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+
+    expect(receivedArgs).toHaveLength(2)
+    const opts = receivedArgs[1] as Record<string, unknown>
+    // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+    const bg = opts.background as Record<string, unknown>
+    expect(bg).toBeDefined()
+    expect(bg.excludeImagesFromBackground).toBe(true)
+    // 独立转发：excludeTextFromBackground 不应被自动设置
+    expect(bg.excludeTextFromBackground).toBeUndefined()
+  })
+
+  it('existing background options remain forwarded alongside excludeImagesFromBackground (regression)', async () => {
+    const serialized = {
+      id: 'bg-all-options-doc',
+      title: 'BG All Options',
+      outline: [],
+      background: {
+        includeBackground: false,
+        backgroundQuality: 0.8,
+        excludeTextFromBackground: true,
+        // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+        excludeImagesFromBackground: true
+      },
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'Regression forwarding',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 176,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [176, 0], [176, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+
+    expect(receivedArgs).toHaveLength(2)
+    const opts = receivedArgs[1] as Record<string, unknown>
+    const bg = opts.background as Record<string, unknown>
+    expect(bg).toBeDefined()
+    // 回归：所有已知背景选项必须完整转发
+    expect(bg).toMatchObject({
+      includeBackground: false,
+      backgroundQuality: 0.8,
+      excludeTextFromBackground: true,
+      excludeImagesFromBackground: true
+    })
+  })
+
   it('ignores non-object textControl without throwing', async () => {
     const serialized = {
       id: 'bad-tc-doc',
