@@ -246,6 +246,7 @@ async function captureThumbnail(
 			doc,
 			{
 				excludeTextFromBackground: options?.excludeTextFromBackground,
+				excludeImagesFromBackground: options?.excludeImagesFromBackground,
 				sourceDoc: effectiveSourceDoc,
 				styleContainers: effectiveStyleContainers,
 			},
@@ -1045,7 +1046,8 @@ export class HtmlParser extends DocumentParser {
 				: 0.3;
 
 		const thumb =
-			bgOptions?.excludeTextFromBackground === true
+			(bgOptions?.excludeTextFromBackground === true ||
+				bgOptions?.excludeImagesFromBackground === true)
 				? await captureThumbnail(
 						p,
 						thumbnailTexts,
