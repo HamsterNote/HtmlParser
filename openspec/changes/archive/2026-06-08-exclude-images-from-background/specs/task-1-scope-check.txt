@@ -1,0 +1,36 @@
+## Scope Fidelity Check — exclude-images-from-background
+
+Verification that the proposal does NOT leak into forbidden scopes.
+
+### EncodeOptions
+- [x] CHECKED: All files under `openspec/changes/add-exclude-images-from-background/` search for "EncodeOptions"
+- [x] RESULT: Only mentioned in the Must NOT Have section (explicitly excluded) and in spec delta (explicitly excluded)
+- [x] VERDICT: NOT changed
+
+### CSS background-image / SVG / picture / video
+- [x] CHECKED: proposal.md Must NOT Have states "不支持 CSS background-image、SVG、<picture>、<video> poster 作为排除目标 —— 本选项只针对 encode 阶段已收集到的 IntermediateImage 前景图"
+- [x] CHECKED: spec delta demo-decode-preview explicitly says "no other media source (CSS background-image, SVG, <picture>, <video>) is taken into account because they are explicitly out of scope for this option"
+- [x] VERDICT: NOT included
+
+### Nested config (excludeContent: { text, images })
+- [x] CHECKED: No use of "excludeContent" in any new file
+- [x] VERDICT: NOT proposed
+
+### Source code changes (src/ or demo/)
+- [x] CHECKED: No file in `src/` or `demo/` has been created or modified
+- [x] VERDICT: Not touched (spec/proposal only)
+
+### Archived changes
+- [x] CHECKED: No files under `openspec/changes/archive/**` have been modified
+- [x] VERDICT: Archive is intact
+
+### Comment on existing test behavior
+The learnings note that `src/__tests__/renderer.test.ts` has a regression test with comment
+"图片始终渲染，不受 excludeTextFromBackground 影响" — this test MUST be narrowed in the
+implementation phase to "在未启用 excludeImagesFromBackground 时图片始终渲染". This is noted
+here as a deliberate scope-aware change, not a scope violation.
+
+### Summary
+All forbidden scopes are explicitly excluded. This change is narrow, well-bounded, and
+introduces no implied changes outside `BackgroundDecodeOptions` + pageThumbnailDom guard +
+demo checkbox.

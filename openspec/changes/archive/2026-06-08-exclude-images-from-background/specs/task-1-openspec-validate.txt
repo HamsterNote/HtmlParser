@@ -1,0 +1,55 @@
+## openspec validate command result
+Date: 2026-06-08
+Command: openspec validate add-exclude-images-from-background --strict
+Result: CLI NOT AVAILABLE — `openspec` not found on PATH
+  - `which openspec` -> "openspec not found"
+  - `npm ls openspec` -> empty (not installed in project)
+  - `npm ls openspec-cli` -> empty
+  - `npx openspec validate ...` -> "could not determine executable to run"
+Recommendation: Install openspec-cli globally or add to package.json devDependencies if needed.
+
+## Manual structure validation (replaces CLI check)
+
+### File existence
+- [x] openspec/changes/add-exclude-images-from-background/proposal.md
+- [x] openspec/changes/add-exclude-images-from-background/tasks.md
+- [x] openspec/changes/add-exclude-images-from-background/specs/demo-decode-preview/spec.md
+- [x] openspec/changes/add-exclude-images-from-background/specs/htmlparser-demo-page/spec.md
+
+### proposal.md sections
+- [x] ## Why — explains the use case (caller wants background without duplicate images)
+- [x] ## What Changes — lists API, source files, demo, types affected
+- [x] ## Impact — default unchanged, type exports, test coverage scope
+
+### tasks.md structure
+- [x] Task 1: Author OpenSpec change (this task)
+- [x] Task 2: Add field + RED test
+- [x] Task 3: Gate image injection in pageThumbnailDom.ts
+- [x] Task 4: Wire through captureThumbnail() + decode routing
+- [x] Task 5: Demo UI + decode wiring
+- [x] Task 6: Regression & E2E hardening
+- [x] Final Verification Wave (F1-F4)
+
+### Spec delta: demo-decode-preview/spec.md
+- [x] Default behavior preserves images in background
+- [x] Explicit image exclusion removes images from background only (foreground unaffected)
+- [x] Both exclusions combine independently
+- [x] EncodeOptions unchanged
+
+### Spec delta: htmlparser-demo-page/spec.md
+- [x] Checkbox (data-role="bg-exclude-images") visible, unchecked by default, below bg-exclude-text
+- [x] Checkbox state forwards into decode call
+- [x] Foreground images still render when background excludes images
+
+### Explicit non-goals
+- [x] EncodeOptions unchanged (stated in proposal.md Capabilities: Must NOT Have, and spec delta)
+- [x] CSS background-image, SVG, <picture>, <video> out of scope
+- [x] No nested config (excludeContent: { text, images })
+- [x] No source code (src/ or demo/) modification — spec only
+
+### Format consistency
+- [x] proposal.md mirrors archive format (## Why / ## What Changes / ## Capabilities / ## Impact)
+- [x] tasks.md mirrors archive format (Wave-based tasks with references/acceptance criteria/QA scenarios)
+- [x] Spec deltas use ## ADDED Requirements heading (matching 2026-02-07-demo-decode pattern)
+- [x] `excludeImagesFromBackground` used consistently (camelCase)
+- [x] Default behavior OFF for both undefined and false

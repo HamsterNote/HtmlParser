@@ -1,0 +1,36 @@
+
+> @hamster-note/html-parser@0.7.0 test:e2e
+> yarn build:all && python3 /home/zhangxiao/.config/opencode/skills/webapp-testing/scripts/with_server.py --server "yarn dev" --port 8169 --timeout 60 -- .venv/bin/python -m pytest e2e -q
+
+yarn run v1.22.22
+$ rolldown --config rolldown.config.ts
+[33m[PLUGIN_TIMINGS] Warning:[0m Your build spent significant time in plugins. Here is a breakdown:
+  - rolldown-plugin-dts:resolver (76%)
+
+<DIR>/htmlParser.worker.js.map              asset │ size:   1.58 kB
+<DIR>/index.js.map                          asset │ size: 162.07 kB
+<DIR>/htmlParserWorkerCore-BzpBNklB.js.map  asset │ size: 253.90 kB
+<DIR>/html2canvas-CW-wiz-7.js.map           asset │ size: 607.92 kB
+<DIR>/htmlParser.worker.d.ts                chunk │ size:   0.01 kB
+<DIR>/htmlParser.worker.js                  chunk │ size:   0.78 kB
+<DIR>/chunk-DxxrS-O2.js                     chunk │ size:   1.25 kB
+<DIR>/index.d.ts                            chunk │ size:  16.48 kB
+<DIR>/index.js                              chunk │ size:  80.47 kB
+<DIR>/htmlParserWorkerCore-BzpBNklB.js      chunk │ size: 119.36 kB
+<DIR>/html2canvas-CW-wiz-7.js               chunk │ size: 334.42 kB
+
+✔ rolldown v1.0.0-beta.58 Finished in 1.34 s
+Done in 1.59s.
+..........                                                               [100%]
+10 passed in 19.68s
+Starting server 1/1: yarn dev
+Waiting for server on port 8169...
+Server ready on port 8169
+
+All 1 server(s) ready
+Running: .venv/bin/python -m pytest e2e -q
+
+
+Stopping 1 server(s)...
+Server 1 stopped
+All servers stopped

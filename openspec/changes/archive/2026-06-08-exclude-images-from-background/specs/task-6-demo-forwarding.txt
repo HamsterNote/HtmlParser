@@ -1,0 +1,4 @@
+    ✓ forwards excludeImagesFromBackground through data.background to injected decodeToHtml (3 ms)
+    ✓ forwards excludeImagesFromBackground independently without excludeTextFromBackground (1 ms)
+    ✓ existing background options remain forwarded alongside excludeImagesFromBackground (regression)
+Tests:       13 skipped, 3 passed, 16 total
