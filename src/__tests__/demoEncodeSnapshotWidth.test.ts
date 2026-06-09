@@ -53,6 +53,9 @@ const ENCODE_HTML = `<!doctype html>
             class="exclude-selector-input"
             data-role="snapshot-width"
             type="number"
+            min="100"
+            max="10000"
+            step="1"
             placeholder="1024"
           />
         </div>
@@ -146,6 +149,16 @@ describe('demo encode.html snapshot-width input', () => {
     expect(input.type).toBe('number')
   })
 
+  it('matches demo validation bounds on the snapshot-width input', () => {
+    const input = requireElement(
+      doc.querySelector('[data-role="snapshot-width"]'),
+      'snapshot-width input'
+    )
+    expect(input.getAttribute('min')).toBe('100')
+    expect(input.getAttribute('max')).toBe('10000')
+    expect(input.getAttribute('step')).toBe('1')
+  })
+
   it('places snapshot-width input inside the exclude-selector-section', () => {
     const section = requireElement(doc.querySelector('.exclude-selector-section'), 'exclude selector section')
     const input = requireElement(section.querySelector('[data-role="snapshot-width"]'), 'snapshot-width input')
@@ -186,7 +199,13 @@ describe('handleParse snapshot-width option forwarding', () => {
     serializeCalls = []
     const fn = (...args: unknown[]) => {
       serializeCalls.push({ args })
-      return Promise.resolve({ id: 'test', title: 'T', outline: [], pages: [] })
+      const intermediate = args[0] as { pages?: unknown[] }
+      return Promise.resolve({
+        id: 'test',
+        title: 'T',
+        outline: [],
+        pages: intermediate.pages ?? [],
+      })
     }
     return fn
   }
@@ -234,7 +253,9 @@ describe('handleParse snapshot-width option forwarding', () => {
     }
 
     const buffer = new TextEncoder().encode('<html></html>').buffer
-    const result = await encodeFn(buffer, Object.keys(encodeOptions).length > 0 ? encodeOptions : undefined)
+    const result = Object.keys(encodeOptions).length > 0
+      ? await encodeFn(buffer, encodeOptions)
+      : await encodeFn(buffer)
     const intermediate = result.getIntermediateDocument()
     const serialized = await serializeFn(intermediate)
     if (output) {
@@ -270,6 +291,39 @@ describe('handleParse snapshot-width option forwarding', () => {
 
     expect(encodeCalls).toHaveLength(1)
     expect(encodeCalls[0].args[1]).toEqual({ snapshotWidth: 640 })
+  })
+
+  it('passes snapshotWidth 1200 and serializes Page width in output', async () => {
+    const input = requireElement(
+      doc.querySelector('[data-role="snapshot-width"]') as DemoInputElement | null,
+      'snapshot-width input'
+    )
+    const output = requireElement(doc.querySelector('[data-role="output"]'), 'output')
+    input.value = '1200'
+
+    encodeCalls = []
+    serializeCalls = []
+    const mockEncode = (...args: unknown[]) => {
+      encodeCalls.push({ args })
+      const options = args[1] as { snapshotWidth?: number } | undefined
+      return Promise.resolve({
+        getIntermediateDocument: () => ({
+          id: 'test',
+          title: 'T',
+          pages: [{ id: 'page-1', width: options?.snapshotWidth, height: 900 }],
+        }),
+      })
+    }
+    const mockSerialize = createMockSerialize()
+
+    await simulateHandleParse(doc, mockEncode, mockSerialize)
+
+    expect(encodeCalls).toHaveLength(1)
+    expect(encodeCalls[0].args[1]).toEqual({ snapshotWidth: 1200 })
+    const parsed = JSON.parse(output.textContent ?? '{}') as {
+      pages: Array<{ width?: number }>
+    }
+    expect(parsed.pages[0].width).toBe(1200)
   })
 
   it('throws deterministic error for fractional snapshotWidth', async () => {

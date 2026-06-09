@@ -148,8 +148,8 @@ export function buildEncodeDocumentPayload(
 
 function getFragmentStyle(): string {
   return `
-      .hamster-note-document { position: relative; display: block; contain: layout style size; }
-      .hamster-note-document .hamster-note-page { position: relative; overflow: hidden; background-repeat: no-repeat; background-position: top center; background-size: contain; }
+      .hamster-note-document { position: relative; display: block; contain: layout style; }
+      .hamster-note-document .hamster-note-page { position: relative; overflow: visible; background-repeat: no-repeat; background-position: top center; background-size: contain; }
       .hamster-note-document .hamster-note-text { position: absolute; white-space: pre; transform-origin: 0 0; }
       .hamster-note-document .hamster-note-image { position: absolute; }
       .hamster-note-image { z-index: 1; }

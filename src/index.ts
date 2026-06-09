@@ -84,7 +84,7 @@ function resolveIframeHostDocument(): IframeHostDocument | null {
 export type Html2CanvasLike = (
 	element: HTMLElement,
 	options?: Record<string, unknown>,
-) => Promise<{ toDataURL(type?: string): string }>;
+) => Promise<{ width?: number; height?: number; toDataURL(type?: string): string }>;
 export type Html2CanvasLoader = () => Promise<Html2CanvasLike>;
 export type EncodeOptions = {
 	excludeSelectors?: string[];
@@ -260,6 +260,55 @@ function buildLazyThumbnailFn(
 		inFlightSnapshotWidth = localSnapshotWidth;
 		return localPromise;
 	};
+}
+
+type PageCanvasCssSize = {
+	pageWidth: number;
+	pageHeight: number;
+};
+
+async function measureDocumentCanvasCssSize(
+	doc: Document,
+	layoutWidth: number,
+	fallbackSize: PageCanvasCssSize,
+): Promise<PageCanvasCssSize> {
+	try {
+		const target = (doc.documentElement ?? doc.body) as HTMLElement | null;
+		if (!target) return fallbackSize;
+
+		const scale = 1;
+		const loader = __getHtml2CanvasLoader();
+		const html2canvas = await loader();
+		const canvas = await html2canvas(target, {
+			backgroundColor: "#ffffff",
+			scale,
+			useCORS: true,
+			width: layoutWidth,
+			windowWidth: layoutWidth,
+		});
+		const canvasHeight =
+			typeof canvas.height === "number" ? canvas.height : Number.NaN;
+		const normalizedCanvasHeight = canvasHeight / scale;
+
+		if (
+			Number.isFinite(normalizedCanvasHeight) &&
+			normalizedCanvasHeight > 0
+		) {
+			return {
+				pageWidth: layoutWidth,
+				pageHeight: normalizedCanvasHeight,
+			};
+		}
+
+		devConsoleLog("[encode] page size canvas measurement invalid", {
+			canvasHeight,
+			layoutWidth,
+		});
+	} catch (err) {
+		devConsoleLog("[encode] page size canvas measurement failed", err);
+	}
+
+	return fallbackSize;
 }
 
 async function captureThumbnail(
@@ -2096,6 +2145,7 @@ export class HtmlParser extends DocumentParser {
 		let capturedStyleContainers: WhitelistedStyleContainerModel[] | undefined;
 		let preloadThumbnail = false;
 		const snapshotWidth = resolveSnapshotWidth(options);
+		const layoutWidth = snapshotWidth ?? 1024;
 
 		const result = await HtmlParser.withIframeDocument(
 			html,
@@ -2114,13 +2164,25 @@ export class HtmlParser extends DocumentParser {
 					iframeDocument,
 					id,
 					excludeMatcher,
-					snapshotWidth,
+					layoutWidth,
+				);
+				const measuredSize = await measureDocumentCanvasCssSize(
+					iframeDocument,
+					layoutWidth,
+					{
+						pageWidth: collected.pageWidth,
+						pageHeight: collected.pageHeight,
+					},
 				);
 				capturedStyleContainers =
 					captureWhitelistedStyleContainerModels(iframeDocument);
-				return collected;
+				return {
+					...collected,
+					pageWidth: measuredSize.pageWidth,
+					pageHeight: measuredSize.pageHeight,
+				};
 			},
-			snapshotWidth,
+			layoutWidth,
 		);
 		title = result.title || title;
 		texts = result.texts;

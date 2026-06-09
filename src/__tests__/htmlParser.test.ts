@@ -1315,20 +1315,25 @@ describe('HtmlParser', () => {
     })
   })
 
-  it('encode does not call html2canvas before page thumbnail is requested', async () => {
+  it('encode only calls html2canvas for page-size measurement before page thumbnail is requested', async () => {
     await withDomDocument(async ({ document }) => {
       const restoreDocument = exposeGlobalDocument(document)
       const handle = installFakeHtml2Canvas()
       try {
         const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
         const doc = await HtmlParser.encode(buffer)
-        expect(handle.calls).toHaveLength(0)
-        expect(handle.loaderCallCount).toBe(0)
+        expect(handle.calls).toHaveLength(1)
+        expect(handle.loaderCallCount).toBe(1)
+        expect(handle.calls[0]?.options).toMatchObject({
+          scale: 1,
+          width: 1024,
+          windowWidth: 1024
+        })
         const intermediate = doc.getIntermediateDocument()
         const pages = await intermediate.pages
         const result = await pages[0].getThumbnail(0.3)
-        expect(handle.calls).toHaveLength(1)
-        expect(handle.loaderCallCount).toBe(1)
+        expect(handle.calls).toHaveLength(2)
+        expect(handle.loaderCallCount).toBe(2)
         expect(result).toMatchObject({ src: 'data:image/png;base64,FAKE' })
       } finally {
         handle.restore()
@@ -1351,8 +1356,8 @@ describe('HtmlParser', () => {
 
         expect(firstResult).toMatchObject({ src: 'data:image/png;base64,FAKE' })
         expect(secondResult).toMatchObject({ src: 'data:image/png;base64,FAKE' })
-        expect(handle.calls).toHaveLength(1)
-        expect(handle.calls[0]?.options).toEqual({
+        expect(handle.calls).toHaveLength(2)
+        expect(handle.calls[1]?.options).toEqual({
           backgroundColor: '#ffffff',
           scale: 0.3,
           useCORS: true
@@ -1374,7 +1379,7 @@ describe('HtmlParser', () => {
         const pages = await doc.getIntermediateDocument().pages
 
         await expect(pages[0].getThumbnail(0.3)).resolves.toBeUndefined()
-        expect(handle.calls).toHaveLength(1)
+        expect(handle.calls).toHaveLength(2)
       } finally {
         handle.restore()
         restoreDocument()
@@ -1396,7 +1401,7 @@ describe('HtmlParser', () => {
           pages[0].getThumbnail(0.3)
         ])
 
-        expect(handle.calls).toHaveLength(1)
+        expect(handle.calls.filter((call) => call.options?.scale === 0.3)).toHaveLength(1)
         expect(a).toEqual(b)
         expect(a).toMatchObject({ src: 'data:image/png;base64,FAKE' })
       } finally {
@@ -1430,9 +1435,13 @@ describe('HtmlParser', () => {
         const secondNarrow = await narrowPage.getThumbnail(0.3)
         const wide = await widePage.getThumbnail(0.3)
 
-        expect(calls).toHaveLength(2)
-        expect(calls.map((options) => options?.width)).toEqual([320, 640])
-        expect(calls.map((options) => options?.windowWidth)).toEqual([320, 640])
+        const measurementCalls = calls.filter((options) => options?.scale === 1)
+        const thumbnailCalls = calls.filter((options) => options?.scale === 0.3)
+        expect(measurementCalls).toHaveLength(2)
+        expect(thumbnailCalls).toHaveLength(2)
+        expect(measurementCalls.map((options) => options?.width)).toEqual([320, 640])
+        expect(thumbnailCalls.map((options) => options?.width)).toEqual([320, 640])
+        expect(thumbnailCalls.map((options) => options?.windowWidth)).toEqual([320, 640])
         expect(firstNarrow).toEqual(secondNarrow)
         expect(firstNarrow?.src).toBe('data:image/png;base64,WIDTH_320')
         expect(wide?.src).toBe('data:image/png;base64,WIDTH_640')
@@ -1456,15 +1465,15 @@ describe('HtmlParser', () => {
         expect(html).toContain(
           "background-image:url(&#39;data:image/png;base64,WIDTH640&#39;)"
         )
-        expect(handle.calls).toHaveLength(1)
-        expect(handle.calls[0]?.options).toEqual({
+        expect(handle.calls).toHaveLength(2)
+        expect(handle.calls[1]?.options).toEqual({
           backgroundColor: '#ffffff',
           scale: 0.3,
           useCORS: true,
           width: 640,
           windowWidth: 640
         })
-        expect(handle.calls[0]?.element.style.width).toBe('640px')
+        expect(handle.calls[1]?.element.style.width).toBe('640px')
       } finally {
         handle.restore()
         restoreDocument()
@@ -1484,12 +1493,12 @@ describe('HtmlParser', () => {
 
         const firstResult = await page.getThumbnail(0.3)
         expect(firstResult).toMatchObject({ src: 'data:image/png;base64,FAKE' })
-        expect(handle.calls).toHaveLength(1)
+        expect(handle.calls).toHaveLength(2)
 
         const secondResult = await page.getThumbnail(1)
         expect(secondResult).toMatchObject({ src: 'data:image/png;base64,FAKE' })
-        expect(handle.calls).toHaveLength(2)
-        expect(handle.calls[1]?.options?.scale).toBe(1)
+        expect(handle.calls).toHaveLength(3)
+        expect(handle.calls[2]?.options?.scale).toBe(1)
         expect((page as unknown as { _thumbnail?: { src: string } })._thumbnail).toEqual(secondResult)
       } finally {
         handle.restore()
@@ -1555,6 +1564,12 @@ describe('HtmlParser', () => {
         if (typeof scale !== 'number') {
           throw new Error('expected numeric html2canvas scale')
         }
+        if (scale === 1 && options?.width === 1024) {
+          resolve({
+            toDataURL: () => 'data:image/png;base64,MEASURE'
+          })
+          return
+        }
         pendings.push({ scale, resolve })
       }))
 
@@ -1592,6 +1607,81 @@ describe('HtmlParser', () => {
         setHtml2CanvasLoader(null)
         restoreDocument()
       }
+    })
+  })
+
+  describe('HtmlParser.encode Page canvas dimensions', () => {
+    it('uses snapshotWidth and scale-1 html2canvas height as CSS px Page size', async () => {
+      await withDomDocument(async ({ document }) => {
+        const restoreDocument = exposeGlobalDocument(document)
+        const handle = installFakeHtml2Canvas({
+          canvasWidth: 1200,
+          canvasHeight: 2400
+        })
+
+        try {
+          const html = '<main><p>Short text should not define Page height</p></main>'
+          const doc = await HtmlParser.encode(
+            new TextEncoder().encode(html).buffer,
+            { snapshotWidth: 1200 }
+          )
+          const pages = await doc.getIntermediateDocument().pages
+
+          expect(pages[0].width).toBe(1200)
+          expect(pages[0].height).toBe(2400)
+          expect(handle.loaderCallCount).toBe(1)
+          expect(handle.calls).toHaveLength(1)
+          expect(handle.calls[0]?.options).toMatchObject({
+            scale: 1,
+            width: 1200,
+            windowWidth: 1200
+          })
+        } finally {
+          handle.restore()
+          restoreDocument()
+        }
+      })
+    })
+
+    it('keeps exact fallback Page size when html2canvas size measurement rejects', async () => {
+      await withDomDocument(async ({ document }) => {
+        const restoreDocument = exposeGlobalDocument(document)
+        const handle = installFakeHtml2Canvas({
+          behavior: 'reject',
+          error: new Error('page size canvas failed'),
+          canvasWidth: 9999,
+          canvasHeight: 9999
+        })
+        const parserRef = HtmlParser as unknown as Record<string, unknown>
+        const originalCollectTexts = parserRef.collectTextsFromDocument
+
+        try {
+          parserRef.collectTextsFromDocument = async () => ({
+            title: 'Fallback Page Size',
+            texts: [],
+            images: [],
+            pageWidth: 640,
+            pageHeight: 360
+          })
+          const html = '<main><p>Fallback size survives canvas failure</p></main>'
+          const doc = await HtmlParser.encode(new TextEncoder().encode(html).buffer)
+          const pages = await doc.getIntermediateDocument().pages
+
+          expect(pages[0].width).toBe(640)
+          expect(pages[0].height).toBe(360)
+          expect(handle.loaderCallCount).toBe(1)
+          expect(handle.calls).toHaveLength(1)
+          expect(handle.calls[0]?.options).toMatchObject({
+            scale: 1,
+            width: 1024,
+            windowWidth: 1024
+          })
+        } finally {
+          parserRef.collectTextsFromDocument = originalCollectTexts
+          handle.restore()
+          restoreDocument()
+        }
+      })
     })
   })
 
@@ -1763,7 +1853,10 @@ describe('HtmlParser', () => {
             const html = '<div style="background-image:url(data:image/png;base64,AAAA)">Content</div>'
             await encodeHtmlWith(html, {})
             await encodeHtmlWith(html, { snapshotWidth: undefined })
-            expect(handle.calls[0].options?.width).toBeUndefined()
+            const measurementCalls = handle.calls.filter((call) => call.options?.scale === 1)
+            const thumbnailCalls = handle.calls.filter((call) => call.options?.scale === 0.3)
+            expect(measurementCalls.map((call) => call.options?.width)).toEqual([1024, 1024])
+            expect(thumbnailCalls[0]?.options?.width).toBeUndefined()
           })
         } finally {
           handle.restore()

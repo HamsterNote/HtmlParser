@@ -52,6 +52,20 @@ def get_preview_iframe_srcdoc(page: Page) -> str:
     return srcdoc
 
 
+def inject_tall_sample_content(page: Page) -> None:
+    page.locator('#sample-content').evaluate(
+        """
+        element => {
+            const tall = document.createElement('div')
+            tall.setAttribute('data-e2e', 'tall-scroll-fixture')
+            tall.style.cssText = 'height: 2400px; padding-top: 16px; background: linear-gradient(#fff, #eef2ff);'
+            tall.textContent = 'Deterministic tall content for decoded preview scroll regression.'
+            element.append(tall)
+        }
+        """
+    )
+
+
 @pytest.mark.e2e
 @pytest.mark.smoke
 def test_parse_current_page_produces_intermediate_json(demo_page: Page) -> None:
@@ -83,6 +97,67 @@ def test_parse_then_decode_renders_html_preview(demo_page: Page) -> None:
     assert "hamster-note-document" in srcdoc or "First line" in srcdoc or "Rotate me" in srcdoc
 
     demo_page.screenshot(path="/tmp/e2e-parse-decode-preview.png")
+
+
+@pytest.mark.e2e
+@pytest.mark.regression
+def test_decoded_preview_iframe_document_body_scrolls(demo_page: Page) -> None:
+    demo_page.locator('[data-role="snapshot-width"]').fill("1200")
+    inject_tall_sample_content(demo_page)
+    parse_and_wait(demo_page)
+
+    status = demo_page.locator('[data-role="status"]')
+    demo_page.locator('[data-action="decode"]').click(timeout=STATUS_TIMEOUT_MS)
+    expect(status).to_have_text("Decode ready", timeout=STATUS_TIMEOUT_MS)
+
+    iframe = demo_page.locator('[data-role="preview"] iframe')
+    iframe.wait_for(state="attached", timeout=STATUS_TIMEOUT_MS)
+    iframe.evaluate("element => { element.style.height = '360px'; element.style.minHeight = '0' }")
+    iframe_handle = iframe.element_handle(timeout=STATUS_TIMEOUT_MS)
+    assert iframe_handle is not None
+    preview_frame = iframe_handle.content_frame()
+    assert preview_frame is not None
+
+    preview_frame.wait_for_load_state("domcontentloaded", timeout=STATUS_TIMEOUT_MS)
+    preview_frame.locator('.hamster-note-page').wait_for(
+        state="attached",
+        timeout=STATUS_TIMEOUT_MS,
+    )
+
+    metrics = preview_frame.evaluate(
+        """
+        () => {
+            const scrollingElement = document.scrollingElement || document.documentElement || document.body
+            const page = document.querySelector('.hamster-note-page')
+            const clientHeight = scrollingElement.clientHeight || document.documentElement.clientHeight || window.innerHeight
+            const scrollHeight = Math.max(
+                scrollingElement.scrollHeight,
+                document.documentElement.scrollHeight,
+                document.body.scrollHeight
+            )
+            const target = Math.max(1, scrollHeight - clientHeight)
+
+            window.scrollTo(0, 0)
+            scrollingElement.scrollTop = 0
+            const before = scrollingElement.scrollTop
+            window.scrollTo(0, target)
+            const after = scrollingElement.scrollTop
+
+            return {
+                after,
+                before,
+                clientHeight,
+                pageScrollTop: page ? page.scrollTop : null,
+                scrollHeight,
+                target,
+            }
+        }
+        """
+    )
+
+    assert metrics["scrollHeight"] > metrics["clientHeight"]
+    assert metrics["after"] > metrics["before"]
+    assert metrics["pageScrollTop"] in (0, None)
 
 
 @pytest.mark.e2e

@@ -641,9 +641,10 @@ describe("decodeToHtml background options", () => {
 				expect(result).toContain(
 					"background-image:url(&#39;data:image/png;base64,FAKE&#39;)",
 				);
-				expect(handle.calls).toHaveLength(1);
+				expect(handle.calls).toHaveLength(2);
+				const thumbnailCall = handle.calls.find((c) => c.options?.scale !== 1) ?? handle.calls[handle.calls.length - 1];
 				expect(
-					handle.calls[0]?.element.querySelectorAll(".hamster-note-text"),
+					thumbnailCall.element.querySelectorAll(".hamster-note-text"),
 				).toHaveLength(0);
 			} finally {
 				handle.restore();
@@ -1061,10 +1062,11 @@ describe("decodeToHtml background options", () => {
 				expect(result).toContain(
 					"background-image:url(&#39;data:image/png;base64,FAKE&#39;)",
 				);
-				expect(handle.calls).toHaveLength(1);
+				expect(handle.calls).toHaveLength(2);
+				const thumbnailCall2 = handle.calls.find((c) => c.options?.scale !== 1) ?? handle.calls[handle.calls.length - 1];
 
 				// 关键回归点：文本被排除，但图片仍在 offscreen DOM 中
-				const capturedElement = handle.calls[0]?.element;
+				const capturedElement = thumbnailCall2.element;
 				expect(
 					capturedElement?.querySelectorAll(".hamster-note-text"),
 				).toHaveLength(0);
@@ -1132,6 +1134,84 @@ describe("Task 1 decode page container assumption probe", () => {
 			expect(childComputed.position).toBe("absolute");
 			expect(childComputed.left).toBe("10px");
 			expect(childComputed.top).toBe("20px");
+		});
+	});
+});
+
+describe("decode body-natural scroll without nested page scroll", () => {
+	const renderTallPageFragment = (): string =>
+		renderDecodeHtmlFromPayload({
+			pages: [
+				{
+					id: "scroll-page-1",
+					width: 1200,
+					height: 2400,
+					content: [],
+				},
+			],
+			options: { background: { includeBackground: false } },
+		});
+
+	it("emits page sizing while keeping the fragment free of global body CSS and blocking page overflow", async () => {
+		const html = renderTallPageFragment();
+
+		expect(html).toContain("width:1200px");
+		expect(html).toContain("height:2400px");
+		expect(html).toContain("position: relative");
+		expect(html).toContain("contain: layout style");
+		expect(html).not.toContain("contain: layout style size");
+		expect(html).not.toMatch(/html\s*,\s*body/i);
+		expect(html).not.toMatch(
+			/\.hamster-note-page\s*\{[^}]*overflow\s*:\s*hidden/i,
+		);
+	});
+
+	it("lets document.scrollingElement own body scroll while page stays a non-scroll owner", async () => {
+		const html = renderTallPageFragment();
+
+		await withDomDocument(async ({ document, window }) => {
+			const defaultView = document.defaultView;
+			if (!defaultView) throw new Error("expected defaultView in renderer test");
+
+			document.body.innerHTML = html;
+			const scrollingElement = document.scrollingElement as HTMLElement | null;
+			const page = document.querySelector(
+				".hamster-note-page",
+			) as HTMLElement | null;
+			expect(scrollingElement).not.toBeNull();
+			expect(page).not.toBeNull();
+			if (!scrollingElement || !page) {
+				throw new Error("expected scroll host and rendered page");
+			}
+
+			const simulatedDocumentScrollHeight = 2400;
+			const simulatedViewportHeight = 768;
+			Object.defineProperty(scrollingElement, "scrollHeight", {
+				configurable: true,
+				value: simulatedDocumentScrollHeight,
+			});
+			Object.defineProperty(scrollingElement, "clientHeight", {
+				configurable: true,
+				value: simulatedViewportHeight,
+			});
+			Object.defineProperty(defaultView, "innerHeight", {
+				configurable: true,
+				value: simulatedViewportHeight,
+			});
+			defaultView.scrollTo = (_x: number, y: number): void => {
+				scrollingElement.scrollTop = Math.max(
+					0,
+					Math.min(y, scrollingElement.scrollHeight - scrollingElement.clientHeight),
+				);
+			};
+
+			expect(defaultView.getComputedStyle(page).overflow).not.toBe("hidden");
+			expect(page.scrollTop).toBe(0);
+
+			window.scrollTo(0, 1000);
+
+			expect(scrollingElement.scrollTop).toBe(1000);
+			expect(page.scrollTop).toBe(0);
 		});
 	});
 });
@@ -1750,9 +1830,8 @@ describe("background style whitelist capture", () => {
 					background: { excludeTextFromBackground: true },
 				});
 
-				const capturedElement = handle.calls[0]?.element;
-				expect(capturedElement).toBeDefined();
-				if (!capturedElement) throw new Error("expected html2canvas call");
+				const thumbnailCall3 = handle.calls.find((c) => c.options?.scale !== 1) ?? handle.calls[handle.calls.length - 1];
+				const capturedElement = thumbnailCall3.element;
 				const [container] = getVisualContainers(capturedElement);
 				expect(container).toBeDefined();
 				if (!container) throw new Error("expected visual container");
@@ -1838,9 +1917,10 @@ describe("background style whitelist capture", () => {
 				expect(result).toContain(
 					"background-image:url(&#39;data:image/png;base64,DEFAULTSTYLE&#39;)",
 				);
-				expect(handle.calls).toHaveLength(1);
+				expect(handle.calls).toHaveLength(2);
+				const thumbnailCall4 = handle.calls.find((c) => c.options?.scale !== 1) ?? handle.calls[handle.calls.length - 1];
 
-				const capturedElement = handle.calls[0]?.element;
+				const capturedElement = thumbnailCall4.element;
 				expect(capturedElement).toBeDefined();
 				if (!capturedElement) throw new Error("expected html2canvas call");
 				const [container] = getVisualContainers(capturedElement);
@@ -2003,14 +2083,15 @@ describe("background style whitelist capture", () => {
 				expect(result).toContain(
 					"background-image:url(&#39;data:image/png;base64,BROADWIDTH&#39;)",
 				);
-				expect(handle.calls).toHaveLength(1);
-				expect(handle.calls[0]?.options).toEqual({
+				expect(handle.calls).toHaveLength(2);
+				const thumbnailCall5 = handle.calls.find((c) => c.options?.scale !== 1) ?? handle.calls[handle.calls.length - 1];
+				expect(thumbnailCall5.options).toEqual({
 					backgroundColor: "#ffffff",
 					scale: 0.3,
 					useCORS: true,
 				});
 
-				const capturedElement = handle.calls[0]?.element;
+				const capturedElement = thumbnailCall5.element;
 				expect(capturedElement).toBeDefined();
 				if (!capturedElement) throw new Error("expected html2canvas call");
 				const [container] = getVisualContainers(capturedElement);

@@ -64,10 +64,9 @@ def test_snapshot_width_input_appears_after_exclude_selectors(demo_page: Page) -
 
 @pytest.mark.e2e
 def test_parse_with_snapshot_width_input_populated(demo_page: Page) -> None:
-    """验证填入 snapshot-width 数值后点击 Parse，JSON 输出成功。"""
     snapshot_input = demo_page.locator('[data-role="snapshot-width"]')
     expect(snapshot_input).to_have_count(1)
-    snapshot_input.fill("640")
+    snapshot_input.fill("1200")
 
     status = demo_page.locator('[data-role="status"]')
     output = demo_page.locator('[data-role="output"]')
@@ -83,6 +82,7 @@ def test_parse_with_snapshot_width_input_populated(demo_page: Page) -> None:
     assert {"id", "title", "outline", "pages"}.issubset(parsed)
     assert isinstance(parsed["pages"], list)
     assert len(parsed["pages"]) > 0
+    assert parsed["pages"][0]["width"] == 1200
 
 
 @pytest.mark.e2e

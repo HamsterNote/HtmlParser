@@ -15,6 +15,39 @@ function createPlaceholderElement(preview, message) {
   return placeholder
 }
 
+function getDecodedPageSize(preview, html) {
+  const doc = getPreviewDocument(preview)
+  const scratch = doc.createElement('div')
+  scratch.innerHTML = html
+
+  return Array.from(scratch.querySelectorAll('.hamster-note-page')).reduce(
+    (size, page) => {
+      const element = page instanceof doc.defaultView.HTMLElement ? page : null
+      if (!element) return size
+
+      const width = Number.parseFloat(element.style.width)
+      const height = Number.parseFloat(element.style.height)
+
+      return {
+        width: Number.isFinite(width) ? Math.max(size.width, width) : size.width,
+        height: Number.isFinite(height) ? Math.max(size.height, height) : size.height
+      }
+    },
+    { width: 0, height: 0 }
+  )
+}
+
+function sizeFrameToDecodedPage(frame, size) {
+  if (size.width > 0) {
+    frame.style.width = `${size.width}px`
+    frame.style.maxWidth = 'none'
+  }
+
+  if (size.height > 0) {
+    frame.style.minHeight = `${size.height}px`
+  }
+}
+
 export function setPreviewMessage(preview, message, isError = false) {
   if (!preview) {
     return
@@ -35,6 +68,7 @@ export function renderPreviewHtml(preview, html) {
 
   const frame = getPreviewDocument(preview).createElement('iframe')
   frame.className = 'preview-frame'
+  sizeFrameToDecodedPage(frame, getDecodedPageSize(preview, html))
   frame.setAttribute('sandbox', '')
   frame.setAttribute('referrerpolicy', 'no-referrer')
   frame.setAttribute('src', 'about:blank')
