@@ -308,6 +308,32 @@ function getSourceComputedStyle(sourceDoc: Document, element: Element): CSSStyle
   return globalThis.getComputedStyle(element)
 }
 
+function appendWhitelistedStyleContainerModel(
+  sourceDoc: Document,
+  containers: WhitelistedStyleContainerModel[],
+  element: Element
+): void {
+  const rect = element.getBoundingClientRect()
+
+  // 0 尺寸元素不会被 html2canvas 绘制，提前跳过减少无效 DOM。
+  if (rect.width <= 0 || rect.height <= 0) return
+
+  const styles = collectWhitelistedStyles(
+    getSourceComputedStyle(sourceDoc, element),
+    (element as HTMLElement).style
+  )
+
+  if (Object.keys(styles).length === 0) return
+
+  containers.push({
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+    styles
+  })
+}
+
 export function captureWhitelistedStyleContainerModels(
   sourceDoc: Document
 ): WhitelistedStyleContainerModel[] {
@@ -317,27 +343,13 @@ export function captureWhitelistedStyleContainerModels(
   const treeWalker = sourceDoc.createTreeWalker(body, ELEMENT_NODE_FILTER)
   const containers: WhitelistedStyleContainerModel[] = []
 
+  // TreeWalker 从 body 的子节点开始遍历；这里先显式捕获 html/body 本身，
+  // 避免页面级背景（如 html/body background）在缩略图中丢失。
+  appendWhitelistedStyleContainerModel(sourceDoc, containers, sourceDoc.documentElement)
+  appendWhitelistedStyleContainerModel(sourceDoc, containers, body)
+
   for (let node = treeWalker.nextNode(); node; node = treeWalker.nextNode()) {
-    const element = node as Element
-    const rect = element.getBoundingClientRect()
-
-    // 0 尺寸元素不会被 html2canvas 绘制，提前跳过减少无效 DOM。
-    if (rect.width <= 0 || rect.height <= 0) continue
-
-    const styles = collectWhitelistedStyles(
-      getSourceComputedStyle(sourceDoc, element),
-      (element as HTMLElement).style
-    )
-
-    if (Object.keys(styles).length === 0) continue
-
-    containers.push({
-      left: rect.left,
-      top: rect.top,
-      width: rect.width,
-      height: rect.height,
-      styles
-    })
+    appendWhitelistedStyleContainerModel(sourceDoc, containers, node as Element)
   }
 
   return containers

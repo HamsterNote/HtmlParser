@@ -1525,6 +1525,49 @@ describe("background style whitelist capture", () => {
 			root.querySelectorAll<HTMLElement>(".hamster-note-visual-container"),
 		);
 
+	it("captures html and body backgrounds as page-level visual containers", async () => {
+		await withDomDocument(async ({ document }) => {
+			document.documentElement.style.setProperty(
+				"background-image",
+				"linear-gradient(to bottom, red, blue)",
+			);
+			document.body.style.backgroundColor = "rgb(12, 34, 56)";
+			defineRect(document.documentElement, {
+				left: 0,
+				top: 0,
+				width: 300,
+				height: 200,
+			});
+			defineRect(document.body, { left: 0, top: 0, width: 300, height: 180 });
+
+			const handle = buildOffscreenPageElement(
+				{ id: "page-root-background", width: 300, height: 200, texts: [] },
+				document,
+				{ sourceDoc: document },
+			);
+
+			try {
+				const [htmlContainer, bodyContainer] = getVisualContainers(handle.element);
+				expect(htmlContainer).toBeDefined();
+				expect(bodyContainer).toBeDefined();
+				if (!htmlContainer || !bodyContainer) {
+					throw new Error("expected html and body visual containers");
+				}
+
+				expect(htmlContainer.style.backgroundImage).toBe(
+					"linear-gradient(to bottom, red, blue)",
+				);
+				expect(htmlContainer.style.width).toBe("300px");
+				expect(htmlContainer.style.height).toBe("200px");
+				expect(bodyContainer.style.backgroundColor).toBe("rgb(12, 34, 56)");
+				expect(bodyContainer.style.width).toBe("300px");
+				expect(bodyContainer.style.height).toBe("180px");
+			} finally {
+				handle.cleanup();
+			}
+		});
+	});
+
 	it("captures visual containers in the default background path while keeping text", async () => {
 		await withDomDocument(async ({ document }) => {
 			const source = document.createElement("section");
