@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-06-09
+
+### Added
+- 实现图片收集和 IntermediateImage 支持，通过 `collectImagesFromDocument` 从 DOM 中提取图片并转换为数据 URL
+- 新增 Web Worker 并行处理 HTML 解析和编码任务，提升性能（htmlParser.worker.ts、htmlParserWorkerClient.ts）
+- 添加前景图渲染功能，将 IntermediateImage 渲染为定位的 `<img>` 元素
+- 实现基于 sourceOrder 的混合内容排序，支持文本和图片的源顺序排列
+- 新增 `excludeSelectors` 选项到 `HtmlParser.encode()`，支持选择性排除元素
+- 捕获白名单背景样式（border、shadow、outline）以提高缩略图保真度
+- 新增 `snapshotWidth` 选项，支持 CSS 背景捕获时的宽度快照
+- 添加 clip-path inset 支持图片裁剪
+- 新增 E2E 测试基础设施（Playwright + pytest）
+
+### Changed
+- 重构 decodeToHtml 和 encodeDocumentBuild 逻辑，使用 Worker 并行处理
+- 优化页面尺寸计算，使用 viewport 尺寸替代 scrollWidth/scrollHeight
+- 使用像素格式化图片 polygon/clip 坐标（非百分比）
+- 添加 z-index 分层：文本 span 在图片上方
+
+### Fixed
+- 修复有符号负 descent 导致垂直文本收缩的问题
+- 修复排除文本时背景图中图片被错误移除的问题
+- 修正页面高度测量和滚动行为
+- 保留页面级背景在缩略图中
+- 当图片转 dataURL 失败时回退到原始 src
+
 ## [0.7.0] - 2026-06-01
 
 ### Added
