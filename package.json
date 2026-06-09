@@ -7,7 +7,9 @@
     "prepublishOnly": "yarn build:all",
     "dev": "http-server -p 8169",
     "lint": "echo 'no-lint'",
-    "test": "NODE_OPTIONS='--experimental-vm-modules' jest"
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:e2e:install": "python3 -m venv .venv && .venv/bin/pip install -r requirements-e2e.txt",
+    "test:e2e": "yarn build:all && python3 /home/zhangxiao/.config/opencode/skills/webapp-testing/scripts/with_server.py --server \"yarn dev\" --port 8169 --timeout 60 -- .venv/bin/python -m pytest e2e -q"
   },
   "dependencies": {
     "@chenglou/pretext": "^0.0.6",

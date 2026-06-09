@@ -1,25 +1,36 @@
 type SerializedOutlineItem = Record<string, unknown>
 
 type SerializedText = Record<string, unknown>
+type SerializedImage = Record<string, unknown>
+type SerializedContent = SerializedText | SerializedImage
 
 type SerializedPage = {
   id: string
   number: number
   width: number
   height: number
-  texts: SerializedText[]
+  texts?: SerializedText[]
+  images?: SerializedImage[]
+  content?: SerializedContent[]
   thumbnail?: string
 }
 
 type ParsedSerializedPage = SerializedPage & {
   getTexts(): Promise<SerializedText[]>
+  getContent(): Promise<SerializedContent[]>
   getThumbnail(scale?: number): Promise<string | undefined>
+}
+
+type SerializeIntermediateOptions = {
+  thumbnailQuality?: number
 }
 
 export type SerializedIntermediateDocument = {
   id: string
   title: string
   outline: SerializedOutlineItem[]
+  textControl?: unknown
+  background?: Record<string, unknown>
   pages: SerializedPage[]
 }
 
@@ -32,15 +43,18 @@ export declare function serializeIntermediate(intermediate: {
       number: number
       width: number
       height: number
+      content?: SerializedContent[]
       texts?: SerializedText[]
+      images?: SerializedImage[]
       thumbnail?: string
+      getContent?(): Promise<SerializedContent[]>
       getTexts?(): Promise<SerializedText[]>
       getThumbnail?(scale: number): Promise<string | undefined>
     }>
   >
   getOutline?(): SerializedOutlineItem[] | undefined
   outline?: SerializedOutlineItem[]
-}): Promise<SerializedIntermediateDocument>
+}, options?: SerializeIntermediateOptions): Promise<SerializedIntermediateDocument>
 
 export type ParsedSerializedIntermediateDocument = {
   id: string
@@ -54,6 +68,13 @@ export type BackgroundDecodeOptions = {
   includeBackground?: boolean
   backgroundQuality?: number
   excludeTextFromBackground?: boolean
+  /** 是否从背景图中排除图片，默认 false */
+  excludeImagesFromBackground?: boolean
+}
+
+export type EncodeOptions = {
+  excludeSelectors?: string[]
+  snapshotWidth?: number
 }
 
 export type ParsedSerializedDocumentDecoder = (

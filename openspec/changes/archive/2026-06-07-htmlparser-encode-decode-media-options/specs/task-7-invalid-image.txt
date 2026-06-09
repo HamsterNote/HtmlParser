@@ -1,0 +1,71 @@
+
+> @hamster-note/html-parser@0.7.0 test
+> NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --verbose -t invalid image payload src/__tests__/demoDocumentSerialization.test.ts
+
+(node:1563681) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/__tests__/demoDocumentSerialization.test.ts
+  demo document serialization
+    ✓ invalid image payload (missing polygon) throws error through decodeSerializedDocumentToHtml (22 ms)
+    ○ skipped preserves outline during serialize/parse round-trip and still decodes to HTML
+    ○ skipped serializes empty page text arrays without requiring getTexts
+    ○ skipped decodes demo-style special text cases into previewable html
+    ○ skipped serializeIntermediate preserves populated page thumbnail after lazy capture
+    ○ skipped forwards textControl to injected decodeToHtml when serialized JSON has top-level textControl
+    ○ skipped applies textControl overrides in real decode output
+    ○ skipped passes only document to injected decodeToHtml when textControl is absent
+    ○ skipped image roundtrip preserves src, polygon, opacity, and clip through serialize→parse→decode
+    ○ skipped mixed text+image content order preserved across serialize→parse→getContent
+    ○ skipped decodeSerializedDocumentToHtml produces <img class="hamster-note-image"> for image content
+    ○ skipped backward compat: old serialized format with texts+images arrays (no content) still works
+    ○ skipped ignores non-object textControl without throwing
+
+-------------------------------|---------|----------|---------|---------|-------------------------------------------------------
+File                           | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                     
+-------------------------------|---------|----------|---------|---------|-------------------------------------------------------
+All files                      |    6.65 |     0.98 |    3.76 |     7.2 |                                                       
+ demo                          |   16.98 |    12.12 |      35 |   17.64 |                                                       
+  demoDocumentSerialization.js |   16.98 |    12.12 |      35 |   17.64 | 5,23,35,43,53-114,129-167,172-191                     
+ src                           |    3.79 |     0.27 |    1.42 |    4.12 |                                                       
+  HtmlDocument.ts              |       0 |        0 |       0 |       0 | 9-104                                                 
+  HtmlPage.ts                  |    6.97 |     12.5 |    12.5 |    6.97 | 21-115                                                
+  decodeTextControl.ts         |       4 |        0 |       0 |       4 | 63-121                                                
+  devLog.ts                    |       0 |        0 |       0 |       0 | 2-25                                                  
+  htmlParserWorkerClient.ts    |    2.77 |        0 |       0 |    3.22 | 26-102                                                
+  htmlParserWorkerCore.ts      |       0 |        0 |       0 |       0 | 55-268                                                
+  index.ts                     |    1.78 |        0 |       0 |    1.94 | 65-107,119,123-451,457-531,595-984,996-1993,2015-2183 
+  intermediateTextGuard.ts     |       0 |        0 |       0 |       0 | 16-34                                                 
+  pageThumbnailDom.ts          |     3.1 |        0 |       0 |    3.36 | 45-303                                                
+  textCssStyle.ts              |   27.27 |        0 |       0 |   31.57 | 11-13,17-18,22-23,30-51,57,62                         
+  textGeometry.ts              |   10.52 |        0 |       0 |   10.52 | 12-24,28-40,44-56,60-72                               
+  textMeasurement.ts           |      25 |        0 |   33.33 |      25 | 30-48,71-75,84-103                                    
+  textStyle.ts                 |   11.86 |        0 |       0 |   12.96 | 37-41,47-60,67-68,79-94,98-170                        
+ src/mock                      |   41.66 |        0 |       0 |   41.66 |                                                       
+  constants.ts                 |     100 |      100 |     100 |     100 |                                                       
+  errors.ts                    |    12.5 |        0 |       0 |    12.5 | 7-8,13-21                                             
+ src/mock/api                  |   17.14 |        0 |       0 |   17.64 |                                                       
+  coverageReportApi.ts         |      20 |      100 |       0 |      20 | 9-13                                                  
+  mockConfigApi.ts             |   19.04 |        0 |       0 |      20 | 24-28,40-44,51-71                                     
+  mockDatasetApi.ts            |   11.11 |        0 |       0 |   11.11 | 14-24                                                 
+ src/mock/generation           |   11.02 |        0 |       0 |      12 |                                                       
+  datasetBuilder.ts            |    8.33 |        0 |       0 |    9.37 | 11-14,23,35-74                                        
+  determinism.ts               |   11.76 |        0 |       0 |    12.5 | 11,17-39                                              
+  fieldValueGenerator.ts       |   13.11 |        0 |       0 |   14.03 | 8-13,19-21,27-29,36-63,71-92,97-117                   
+  prng.ts                      |    9.09 |        0 |       0 |      10 | 2-7,17-34                                             
+ src/mock/services             |   17.02 |        0 |       0 |   17.77 |                                                       
+  coverageReportService.ts     |   13.33 |        0 |       0 |   13.33 | 13-31,42-67                                           
+  mockConfigService.ts         |      20 |        0 |       0 |   21.05 | 17-29,35-39,45-50                                     
+  mockDatasetService.ts        |   16.66 |        0 |       0 |   18.18 | 18-31                                                 
+ src/mock/store                |   57.14 |      100 |      20 |   57.14 |                                                       
+  mockStores.ts                |   57.14 |      100 |      20 |   57.14 | 13-16,26-28                                           
+ src/mock/validators           |   11.39 |        0 |       0 |   12.85 |                                                       
+  configValidator.ts           |   12.96 |        0 |       0 |   14.28 | 15-40,44-45,51,60,66-87,94-119,124                    
+  constraintValidator.ts       |       8 |        0 |       0 |    9.52 | 4-7,13-62                                             
+ src/mock/versioning           |   17.64 |        0 |       0 |   18.75 |                                                       
+  configVersioning.ts          |   17.64 |        0 |       0 |   18.75 | 4-9,13-20,24-30                                       
+-------------------------------|---------|----------|---------|---------|-------------------------------------------------------
+Test Suites: 1 passed, 1 total
+Tests:       12 skipped, 1 passed, 13 total
+Snapshots:   0 total
+Time:        1.663 s, estimated 5 s
+Ran all test suites matching src/__tests__/demoDocumentSerialization.test.ts with tests matching "invalid image payload".

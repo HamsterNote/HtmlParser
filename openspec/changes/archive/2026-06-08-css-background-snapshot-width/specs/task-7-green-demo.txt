@@ -1,0 +1,40 @@
+Task 7: Demo snapshot width control and encode wiring — GREEN state
+
+Test run: 2026-06-08
+Test file: src/__tests__/demoEncodeSnapshotWidth.test.ts
+
+Results:
+  PASS demo encode.html snapshot-width input
+    ✓ contains a number input with data-role="snapshot-width"
+    ✓ has type="number" on the snapshot-width input
+    ✓ places snapshot-width input inside the exclude-selector-section
+    ✓ locates snapshot-width input after the exclude-selectors input in DOM order
+  PASS handleParse snapshot-width option forwarding
+    ✓ omits snapshotWidth when input is empty
+    ✓ passes { snapshotWidth: value } when input has a positive number
+    ✓ floors fractional snapshotWidth to integer
+    ✓ throws deterministic error for non-numeric input
+    ✓ throws deterministic error for negative snapshotWidth
+    ✓ throws deterministic error for zero snapshotWidth
+  PASS EncodeOptions snapshotWidth field
+    ✓ EncodeOptions type accepts optional snapshotWidth number field
+
+Test Suites: 1 passed, 1 total
+Tests:       11 passed, 11 total
+
+Changes made:
+1. demo/encode.html — Added snapshot-width number input (data-role="snapshot-width", type="number")
+   inside .exclude-selector-section, after the exclude-selectors input. Label: "Snapshot width (px)",
+   placeholder: "1024".
+
+2. demo/demo.js — Added parseSnapshotWidth() helper that reads the input, validates with Number()
+   (must be finite and positive), floors to integer. Updated handleParse() to combine both
+   excludeSelectors and snapshotWidth into encodeOptions before calling HtmlParser.encode().
+
+3. demo/demoDocumentSerialization.d.ts — Added EncodeOptions type mirror with
+   excludeSelectors?: string[] and snapshotWidth?: number.
+
+4. src/__tests__/demoEncodeSnapshotWidth.test.ts — Updated ENCODE_HTML fixture to include
+   the snapshot-width input. Removed @ts-expect-error directives (snapshotWidth already exists
+   in EncodeOptions). Fixed happy-dom compatibility: use doc.defaultView.Node for DOM position
+   check, and Object.defineProperty for non-numeric value simulation on type="number" inputs.

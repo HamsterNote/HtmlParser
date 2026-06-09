@@ -1,0 +1,79 @@
+# Task 8 excludeImagesFromBackground surface audit
+
+## Option presence hit counts (9 active files audited)
+- src/decodeTextControl.ts: 1
+- src/pageThumbnailDom.ts: 3
+- src/index.ts: 3
+- demo/encode.html: 1
+- demo/demo.js: 6
+- demo/demoDocumentSerialization.d.ts: 1
+- src/__tests__/renderer.test.ts: 7
+- src/__tests__/demoDocumentSerialization.test.ts: 14
+- e2e/test_encode_json_input.py: 1
+
+Result: PASS — every expected active file has >=1 exact `excludeImagesFromBackground` hit.
+
+## Raw option grep output
+Command: grep -n "excludeImagesFromBackground" src/decodeTextControl.ts src/pageThumbnailDom.ts src/index.ts demo/encode.html demo/demo.js demo/demoDocumentSerialization.d.ts src/__tests__/renderer.test.ts src/__tests__/demoDocumentSerialization.test.ts e2e/test_encode_json_input.py
+```text
+src/decodeTextControl.ts:30:  excludeImagesFromBackground?: boolean
+src/pageThumbnailDom.ts:9:  /** 页面中的图片列表，仅在 excludeImagesFromBackground !== true 时渲染 */
+src/pageThumbnailDom.ts:16:  excludeImagesFromBackground?: boolean
+src/pageThumbnailDom.ts:262:  if (options?.excludeImagesFromBackground !== true) {
+src/index.ts:249:				excludeImagesFromBackground: options?.excludeImagesFromBackground,
+src/index.ts:1050:				bgOptions?.excludeImagesFromBackground === true)
+demo/encode.html:120:            <input type="checkbox" data-role="bg-exclude-images" data-option="excludeImagesFromBackground" />
+demo/demo.js:129:    const excludeImagesFromBackground = bgExcludeImagesCheckbox?.checked ?? false
+demo/demo.js:131:    const hasCustomBg = !includeBackground || backgroundQuality !== 0.3 || excludeTextFromBackground || excludeImagesFromBackground
+demo/demo.js:137:        excludeImagesFromBackground
+demo/demo.js:190:    const excludeImagesFromBackground = bgExcludeImagesCheckbox?.checked ?? false
+demo/demo.js:192:    const hasCustomBg = !includeBackground || backgroundQuality !== 0.3 || excludeTextFromBackground || excludeImagesFromBackground
+demo/demo.js:198:        excludeImagesFromBackground
+demo/demoDocumentSerialization.d.ts:68:  excludeImagesFromBackground?: boolean
+src/__tests__/renderer.test.ts:689:	// 回归测试：当 excludeImagesFromBackground 未启用时图片仍然渲染
+src/__tests__/renderer.test.ts:759:	describe("excludeImagesFromBackground", () => {
+src/__tests__/renderer.test.ts:781:				excludeImagesFromBackground: true,
+src/__tests__/renderer.test.ts:788:				excludeImagesFromBackground: false,
+src/__tests__/renderer.test.ts:793:				excludeImagesFromBackground: true,
+src/__tests__/renderer.test.ts:842:		it("buildOffscreenPageElement omits image elements when excludeImagesFromBackground is true", async () => {
+src/__tests__/renderer.test.ts:875:		it("buildOffscreenPageElement renders images when excludeImagesFromBackground is false or undefined", async () => {
+src/__tests__/demoDocumentSerialization.test.ts:826:  // ---- TDD: background option forwarding tests (excludeImagesFromBackground) ----
+src/__tests__/demoDocumentSerialization.test.ts:828:  it('forwards excludeImagesFromBackground through data.background to injected decodeToHtml', async () => {
+src/__tests__/demoDocumentSerialization.test.ts:833:      background: { excludeImagesFromBackground: true },
+src/__tests__/demoDocumentSerialization.test.ts:878:    // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+src/__tests__/demoDocumentSerialization.test.ts:881:    expect(bg).toMatchObject({ excludeImagesFromBackground: true })
+src/__tests__/demoDocumentSerialization.test.ts:884:  it('forwards excludeImagesFromBackground independently without excludeTextFromBackground', async () => {
+src/__tests__/demoDocumentSerialization.test.ts:889:      // 仅设置 excludeImagesFromBackground，不设置 excludeTextFromBackground
+src/__tests__/demoDocumentSerialization.test.ts:890:      background: { excludeImagesFromBackground: true },
+src/__tests__/demoDocumentSerialization.test.ts:935:    // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+src/__tests__/demoDocumentSerialization.test.ts:938:    expect(bg.excludeImagesFromBackground).toBe(true)
+src/__tests__/demoDocumentSerialization.test.ts:943:  it('existing background options remain forwarded alongside excludeImagesFromBackground (regression)', async () => {
+src/__tests__/demoDocumentSerialization.test.ts:952:        // TDD：当前类型尚未声明 excludeImagesFromBackground，实现后将移除 cast
+src/__tests__/demoDocumentSerialization.test.ts:953:        excludeImagesFromBackground: true
+src/__tests__/demoDocumentSerialization.test.ts:1006:      excludeImagesFromBackground: true
+e2e/test_encode_json_input.py:158:    expect(bg_exclude_images).to_have_attribute("data-option", "excludeImagesFromBackground")
+```
+
+## Obsolete always-render wording audit
+Command: grep -rn -E "始终.*渲染|always.*render|images.*always" src/ demo/ e2e/ --include="*.ts" --include="*.js" --include="*.html" --include="*.py" | grep -v "openspec/changes/archive" || true
+
+Initial obsolete statement found before polish:
+- src/pageThumbnailDom.ts:263: `// 渲染图片元素——始终渲染，不受 excludeTextFromBackground 影响`
+
+Resolution:
+- Rephrased src/pageThumbnailDom.ts:263 to `// 未启用图片排除时渲染背景图片；仍不受 excludeTextFromBackground 影响`.
+- No behavior changed; comment now matches the surrounding `if (options?.excludeImagesFromBackground !== true)` gate.
+
+Post-polish obsolete grep output:
+```text
+(no matches)
+```
+
+## Surface consistency polish
+- demo/encode.html:120 adds non-behavioral `data-option="excludeImagesFromBackground"` to the existing `bg-exclude-images` checkbox so active markup exposes the option name for auditability.
+- e2e/test_encode_json_input.py:158 asserts that same data-option mapping in the existing foreground-image preservation test.
+
+## Diagnostics / validation after polish
+- src/pageThumbnailDom.ts: LSP diagnostics 0 errors.
+- demo/encode.html: LSP diagnostics 0 errors.
+- e2e/test_encode_json_input.py: Python LSP unavailable (`basedpyright-langserver` not installed); full `npm run test:e2e` passed 10/10 including the new assertion.

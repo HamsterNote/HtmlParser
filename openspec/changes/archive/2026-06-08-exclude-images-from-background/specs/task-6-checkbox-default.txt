@@ -1,0 +1,2 @@
+data-role bg-exclude-images present, no 'checked' attr → default unchecked
+120:            <input type="checkbox" data-role="bg-exclude-images" />

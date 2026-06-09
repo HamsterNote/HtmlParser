@@ -26,6 +26,22 @@ describe('demo preview helpers', () => {
     expect(preview.querySelector('script')).toBeNull()
   })
 
+  it('sizes the iframe to decoded page width so the preview container can scroll horizontally', () => {
+    const window = new Window()
+    const preview = window.document.createElement('div')
+
+    renderPreviewHtml(
+      preview,
+      '<div class="hamster-note-document"><div class="hamster-note-page" style="width:1440px;height:900px"></div></div>'
+    )
+
+    const frame = preview.querySelector('iframe')
+    expect(frame).not.toBeNull()
+    expect(frame?.style.width).toBe('1440px')
+    expect(frame?.style.maxWidth).toBe('none')
+    expect(frame?.style.minHeight).toBe('900px')
+  })
+
   it('renders placeholder text in the parent container for messages', () => {
     const window = new Window()
     const preview = window.document.createElement('div')

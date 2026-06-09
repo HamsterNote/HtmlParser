@@ -310,6 +310,7 @@ describe('demo document serialization', () => {
   })
 
   it('serializeIntermediate preserves populated page thumbnail after lazy capture', async () => {
+    const thumbnailScales: number[] = []
     const intermediate = {
       id: 'thumbnail-doc',
       title: 'Thumbnail Document',
@@ -348,12 +349,16 @@ describe('demo document serialization', () => {
           getTexts: async function () {
             return this.texts
           },
-          getThumbnail: async () => 'data:image/png;base64,STORED'
+          getThumbnail: async (scale: number) => {
+            thumbnailScales.push(scale)
+            return 'data:image/png;base64,STORED'
+          }
         }
       ])
     }
 
     const serialized = await serializeIntermediate(intermediate)
+    expect(thumbnailScales).toEqual([0.3])
     expect(serialized.pages[0].thumbnail).toBe('data:image/png;base64,STORED')
 
     const parsed = parseSerializedDocument(serialized)
@@ -361,6 +366,36 @@ describe('demo document serialization', () => {
     const page = resolvedPages[0]
     const thumbnail = await page.getThumbnail(0.3)
     expect(thumbnail).toBe('data:image/png;base64,STORED')
+  })
+
+  it('serializeIntermediate uses requested thumbnailQuality for lazy thumbnail capture', async () => {
+    const thumbnailScales: number[] = []
+    const intermediate = {
+      id: 'thumbnail-quality-doc',
+      title: 'Thumbnail Quality Document',
+      getOutline: () => [],
+      pages: Promise.resolve([
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [],
+          thumbnail: undefined,
+          getThumbnail: async (scale: number) => {
+            thumbnailScales.push(scale)
+            return `data:image/png;base64,SCALE_${scale}`
+          }
+        }
+      ])
+    }
+
+    const serialized = await serializeIntermediate(intermediate, {
+      thumbnailQuality: 0.85
+    })
+
+    expect(thumbnailScales).toEqual([0.85])
+    expect(serialized.pages[0].thumbnail).toBe('data:image/png;base64,SCALE_0.85')
   })
 
   it('forwards textControl to injected decodeToHtml when serialized JSON has top-level textControl', async () => {
@@ -514,6 +549,497 @@ describe('demo document serialization', () => {
     expect(receivedArgs).toHaveLength(1)
     const doc = receivedArgs[0] as Record<string, unknown>
     expect(doc.id).toBe('no-tc-doc')
+  })
+
+  // ---- T7: image roundtrip + mixed content order tests ----
+
+  it('image roundtrip preserves src, polygon, opacity, and clip through serialize→parse→decode', async () => {
+    const imagePayload = {
+      id: 'img-1',
+      src: 'data:image/png;base64,AAAA',
+      polygon: [[10, 20], [110, 20], [110, 80], [10, 80]],
+      opacity: 0.8,
+      clip: { x: 5, y: 5, width: 90, height: 50 }
+    }
+
+    const intermediate = {
+      id: 'img-roundtrip-doc',
+      title: 'Image Roundtrip',
+      getOutline: () => [],
+      pages: Promise.resolve([
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 1024,
+          content: [imagePayload],
+          getContent: async function () {
+            return this.content
+          },
+          getThumbnail: async () => undefined
+        }
+      ])
+    }
+
+    const serialized = await serializeIntermediate(intermediate)
+    // 序列化后 content 数组应保留图片项
+    expect(serialized.pages[0].content).toBeDefined()
+    expect(serialized.pages[0].content).toHaveLength(1)
+
+    const parsed = parseSerializedDocument(serialized)
+    const pages = await parsed.pages
+    const content = await pages[0].getContent()
+
+    expect(content).toHaveLength(1)
+    // 验证 roundtrip 后字段完整
+    const img = content[0] as Record<string, unknown>
+    expect(img.id).toBe('img-1')
+    expect(img.src).toBe('data:image/png;base64,AAAA')
+    expect(img.polygon).toEqual([[10, 20], [110, 20], [110, 80], [10, 80]])
+    expect(img.opacity).toBe(0.8)
+    expect(img.clip).toEqual({ x: 5, y: 5, width: 90, height: 50 })
+
+    // decode 输出包含 foreground <img>
+    const html = await decodeSerializedDocumentToHtml(serialized)
+    expect(html).toContain('<img class="hamster-note-image"')
+    expect(html).toContain('data:image/png;base64,AAAA')
+  })
+
+  it('mixed text+image content order preserved across serialize→parse→getContent', async () => {
+    // 构建 DOM 顺序: text → image → text
+    const textA = {
+      id: 'text-a',
+      content: 'Before image',
+      fontSize: 16,
+      fontFamily: '',
+      fontWeight: 400,
+      italic: false,
+      color: '#000000',
+      width: 96,
+      height: 20,
+      polygon: [[0, 0], [96, 0], [96, 20], [0, 20]],
+      lineHeight: 20,
+      x: 0,
+      y: 0,
+      ascent: 12,
+      descent: 4,
+      vertical: false,
+      dir: 'ltr',
+      rotate: 0,
+      skew: 0,
+      isEOL: true
+    }
+    const img = {
+      id: 'img-mid',
+      src: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+      polygon: [[100, 0], [200, 0], [200, 60], [100, 60]],
+      opacity: 1
+    }
+    const textB = {
+      id: 'text-b',
+      content: 'After image',
+      fontSize: 16,
+      fontFamily: '',
+      fontWeight: 400,
+      italic: false,
+      color: '#000000',
+      width: 80,
+      height: 20,
+      polygon: [[0, 70], [80, 70], [80, 90], [0, 90]],
+      lineHeight: 20,
+      x: 0,
+      y: 70,
+      ascent: 12,
+      descent: 4,
+      vertical: false,
+      dir: 'ltr',
+      rotate: 0,
+      skew: 0,
+      isEOL: true
+    }
+
+    const intermediate = {
+      id: 'mixed-order-doc',
+      title: 'Mixed Order',
+      getOutline: () => [],
+      pages: Promise.resolve([
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 1024,
+          content: [textA, img, textB],
+          getContent: async function () {
+            return this.content
+          },
+          getThumbnail: async () => undefined
+        }
+      ])
+    }
+
+    const serialized = await serializeIntermediate(intermediate)
+    // 序列化后 content 数组应保留 text → image → text 顺序
+    const pageContent = serialized.pages[0].content
+    expect(pageContent).toBeDefined()
+    if (!pageContent) {
+      throw new Error('pageContent should be defined')
+    }
+    expect(pageContent).toHaveLength(3)
+    // 第一项是 text (有 content 字段)，第二项是 image (有 src 字段)，第三项是 text
+    expect(pageContent[0]).toHaveProperty('content', 'Before image')
+    expect(pageContent[1]).toHaveProperty('src')
+    expect(pageContent[2]).toHaveProperty('content', 'After image')
+
+    // parse 后 getContent 也保持顺序
+    const parsed = parseSerializedDocument(serialized)
+    const pages = await parsed.pages
+    const resolvedContent = await pages[0].getContent()
+    expect(resolvedContent).toHaveLength(3)
+    expect((resolvedContent[0] as Record<string, unknown>).id).toBe('text-a')
+    expect((resolvedContent[1] as Record<string, unknown>).id).toBe('img-mid')
+    expect((resolvedContent[2] as Record<string, unknown>).id).toBe('text-b')
+  })
+
+  it('decodeSerializedDocumentToHtml produces <img class="hamster-note-image"> for image content', async () => {
+    const serialized = {
+      id: 'decode-img-doc',
+      title: 'Decode Image',
+      outline: [],
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 1024,
+          content: [
+            {
+              id: 'text-before',
+              content: 'Text before',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 80,
+              height: 20,
+              polygon: [[0, 0], [80, 0], [80, 20], [0, 20]],
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true
+            },
+            {
+              id: 'fg-img',
+              src: 'data:image/png;base64,iVBORw0KGgo=',
+              polygon: [[100, 0], [200, 0], [200, 60], [100, 60]],
+              opacity: 0.9
+            },
+            {
+              id: 'text-after',
+              content: 'Text after',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 72,
+              height: 20,
+              polygon: [[0, 70], [72, 70], [72, 90], [0, 90]],
+              lineHeight: 20,
+              x: 0,
+              y: 70,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true
+            }
+          ]
+        }
+      ]
+    }
+
+    const html = await decodeSerializedDocumentToHtml(serialized)
+    // 验证 foreground <img> 输出（与缩略图/背景图不同）
+    expect(html).toContain('<img class="hamster-note-image"')
+    expect(html).toContain('fg-img')
+    expect(html).toContain('data:image/png;base64,iVBORw0KGgo=')
+    // 验证 opacity 在 style 中
+    expect(html).toContain('opacity: 0.9')
+    // 验证 text 仍然存在
+    expect(html).toContain('Text before')
+    expect(html).toContain('Text after')
+  })
+
+  it('invalid image payload (missing polygon) throws error through decodeSerializedDocumentToHtml', async () => {
+    const serialized = {
+      id: 'bad-img-doc',
+      title: 'Bad Image',
+      outline: [],
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 1024,
+          content: [
+            {
+              id: 'bad-img',
+              src: 'data:image/png;base64,AAAA',
+              // polygon 缺失 — IntermediateImage 构造时应抛错
+              opacity: 1
+            }
+          ]
+        }
+      ]
+    }
+
+    // 无效 image payload 经由 IntermediateImage 构造抛错传递到 decode
+    await expect(decodeSerializedDocumentToHtml(serialized)).rejects.toThrow()
+  })
+
+  it('backward compat: old serialized format with texts+images arrays (no content) still works', async () => {
+    const serialized = {
+      id: 'compat-doc',
+      title: 'Compat Document',
+      outline: [],
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 1024,
+          // 只有 texts + images，没有 content — 旧格式
+          texts: [
+            {
+              id: 'text-old',
+              content: 'Old format text',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 104,
+              height: 20,
+              polygon: [[0, 0], [104, 0], [104, 20], [0, 20]],
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true
+            }
+          ],
+          images: [
+            {
+              id: 'img-old',
+              src: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+              polygon: [[100, 0], [200, 0], [200, 60], [100, 60]],
+              opacity: 1
+            }
+          ]
+        }
+      ]
+    }
+
+    // 旧格式：parser 回退 [...texts, ...images]
+    const html = await decodeSerializedDocumentToHtml(serialized)
+    expect(html).toContain('Old format text')
+    expect(html).toContain('<img class="hamster-note-image"')
+    expect(html).toContain('img-old')
+  })
+
+  // ---- Background option forwarding tests (excludeImagesFromBackground) ----
+
+  it('forwards excludeImagesFromBackground through data.background to injected decodeToHtml', async () => {
+    const serialized = {
+      id: 'bg-exclude-img-doc',
+      title: 'BG Exclude Images',
+      outline: [],
+      background: { excludeImagesFromBackground: true },
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'BG option forwarding',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 160,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [160, 0], [160, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+
+    expect(receivedArgs).toHaveLength(2)
+    const opts = receivedArgs[1] as Record<string, unknown>
+    const bg = opts.background as Record<string, unknown>
+    expect(bg).toBeDefined()
+    expect(bg).toMatchObject({ excludeImagesFromBackground: true })
+  })
+
+  it('forwards excludeImagesFromBackground independently without excludeTextFromBackground', async () => {
+    const serialized = {
+      id: 'bg-img-only-doc',
+      title: 'BG Image Only',
+      outline: [],
+      // 仅设置 excludeImagesFromBackground，不设置 excludeTextFromBackground
+      background: { excludeImagesFromBackground: true },
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'Independent forwarding',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 176,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [176, 0], [176, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+
+    expect(receivedArgs).toHaveLength(2)
+    const opts = receivedArgs[1] as Record<string, unknown>
+    const bg = opts.background as Record<string, unknown>
+    expect(bg).toBeDefined()
+    expect(bg.excludeImagesFromBackground).toBe(true)
+    // 独立转发：excludeTextFromBackground 不应被自动设置
+    expect(bg.excludeTextFromBackground).toBeUndefined()
+  })
+
+  it('existing background options remain forwarded alongside excludeImagesFromBackground (regression)', async () => {
+    const serialized = {
+      id: 'bg-all-options-doc',
+      title: 'BG All Options',
+      outline: [],
+      background: {
+        includeBackground: false,
+        backgroundQuality: 0.8,
+        excludeTextFromBackground: true,
+        excludeImagesFromBackground: true
+      },
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          width: 800,
+          height: 200,
+          texts: [
+            {
+              id: 'text-1',
+              content: 'Regression forwarding',
+              fontSize: 16,
+              fontFamily: '',
+              fontWeight: 400,
+              italic: false,
+              color: '#000000',
+              width: 176,
+              height: 20,
+              lineHeight: 20,
+              x: 0,
+              y: 0,
+              ascent: 12,
+              descent: 4,
+              vertical: false,
+              dir: 'ltr',
+              rotate: 0,
+              skew: 0,
+              isEOL: true,
+              polygon: [[0, 0], [176, 0], [176, 20], [0, 20]]
+            }
+          ]
+        }
+      ]
+    }
+
+    const receivedArgs: unknown[] = []
+    const fakeDecodeToHtml = (...args: unknown[]) => {
+      receivedArgs.push(...args)
+      return Promise.resolve('<html>fake</html>')
+    }
+
+    await decodeSerializedDocumentToHtml(serialized, fakeDecodeToHtml)
+
+    expect(receivedArgs).toHaveLength(2)
+    const opts = receivedArgs[1] as Record<string, unknown>
+    const bg = opts.background as Record<string, unknown>
+    expect(bg).toBeDefined()
+    // 回归：所有已知背景选项必须完整转发
+    expect(bg).toMatchObject({
+      includeBackground: false,
+      backgroundQuality: 0.8,
+      excludeTextFromBackground: true,
+      excludeImagesFromBackground: true
+    })
   })
 
   it('ignores non-object textControl without throwing', async () => {

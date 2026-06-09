@@ -25,21 +25,29 @@ import {
 	IntermediateText,
 	TextDir,
 } from "@hamster-note/types";
-import {
-	applyDecodeTextControl,
-	type BackgroundDecodeOptions,
-	type DecodeOptions,
+import type {
+	BackgroundDecodeOptions,
+	DecodeOptions,
 } from "./decodeTextControl.js";
 import { devConsoleError, devConsoleLog } from "./devLog.js";
 import { HtmlDocument } from "./HtmlDocument";
-import { isIntermediateTextLike } from "./intermediateTextGuard.js";
+import {
+	runDecodeHtmlInWorker,
+	runEncodeDocumentBuildInWorker,
+} from "./htmlParserWorkerClient.js";
+import {
+	type DecodeHtmlPagePayload,
+	escapeHtml,
+	serializeWorkerContentItem,
+} from "./htmlParserWorkerCore.js";
+import { isIntermediateImageLike, isIntermediateTextLike } from "./intermediateTextGuard.js";
 import {
 	buildOffscreenPageElement,
+	captureWhitelistedStyleContainerModels,
 	type OffscreenPageHandle,
+	type WhitelistedStyleContainerModel,
 } from "./pageThumbnailDom.js";
-import { cssStyleRecordToString, formatTextCssStyle } from "./textCssStyle.js";
 import { measureTextBaseline } from "./textMeasurement.js";
-import { computeTextStyle } from "./textStyle.js";
 
 const ELEMENT_NODE = 1;
 const TEXT_NODE = 3;
@@ -76,10 +84,67 @@ function resolveIframeHostDocument(): IframeHostDocument | null {
 export type Html2CanvasLike = (
 	element: HTMLElement,
 	options?: Record<string, unknown>,
-) => Promise<{ toDataURL(type?: string): string }>;
+) => Promise<{ width?: number; height?: number; toDataURL(type?: string): string }>;
 export type Html2CanvasLoader = () => Promise<Html2CanvasLike>;
+export type EncodeOptions = {
+	excludeSelectors?: string[];
+	snapshotWidth?: number;
+};
+
+function resolveSnapshotWidth(
+	options?: EncodeOptions,
+): number | undefined {
+	const value = options?.snapshotWidth;
+	if (value === undefined) return undefined;
+
+	if (
+		!Number.isFinite(value) ||
+		!Number.isInteger(value) ||
+		value < 100 ||
+		value > 10000
+	) {
+		throw new Error(`Invalid snapshotWidth: ${value}`);
+	}
+
+	return value;
+}
+
+function buildExcludeMatcher(
+	doc: Document,
+	selectors: string[] | undefined,
+): (el: Element) => boolean {
+	if (!selectors || selectors.length === 0) return () => false;
+
+	const probe = doc.createElement("div");
+	selectors.forEach((selector) => {
+		try {
+			// 校验排除选择器；非法选择器一律抛出确定性错误。
+			probe.matches(selector);
+		} catch {
+			throw new Error(`Invalid exclude selector: ${selector}`);
+		}
+	});
+
+	return (el) => selectors.some((s) => el.matches(s) || !!el.closest(s));
+}
+
+function hasInlineBackgroundImage(
+	doc: Document,
+	excludeMatcher: (el: Element) => boolean = () => false,
+): boolean {
+	return Array.from(doc.querySelectorAll<HTMLElement>("[style]")).some((el) => {
+		if (excludeMatcher(el)) return false;
+		const backgroundImage = el.style.backgroundImage.trim().toLowerCase();
+		return backgroundImage !== "" && backgroundImage !== "none";
+	});
+}
 
 let html2canvasLoaderOverride: Html2CanvasLoader | null = null;
+const thumbnailSourceDocuments = new WeakMap<IntermediatePage, Document>();
+const thumbnailStyleContainers = new WeakMap<
+	IntermediatePage,
+	readonly WhitelistedStyleContainerModel[]
+>();
 export const setHtml2CanvasLoader = (
 	loader: Html2CanvasLoader | null,
 ): void => {
@@ -100,16 +165,30 @@ export const __getHtml2CanvasLoader = (): Html2CanvasLoader =>
 function buildLazyThumbnailFn(
 	page: IntermediatePage,
 	texts: IntermediateText[],
+	/** encode 阶段无图片，传空数组 */
+	images: IntermediateImage[],
 	width: number,
 	height: number,
+	sourceDoc?: Document,
+	styleContainers?: readonly WhitelistedStyleContainerModel[],
+	snapshotWidth?: number,
+	ownerDocument?: Document,
 ): (
 	scale: number,
 	options?: BackgroundDecodeOptions,
 ) => Promise<IntermediateImage | undefined> {
 	let cachedThumbnail: IntermediateImage | undefined;
 	let cachedScale: number | undefined;
+	let cachedSnapshotWidth: number | undefined;
 	let inFlight: Promise<IntermediateImage | undefined> | null = null;
 	let inFlightScale: number | undefined;
+	let inFlightSnapshotWidth: number | undefined;
+	if (sourceDoc) {
+		thumbnailSourceDocuments.set(page, sourceDoc);
+	}
+	if (styleContainers) {
+		thumbnailStyleContainers.set(page, styleContainers);
+	}
 
 	return async (
 		scale: number,
@@ -120,7 +199,8 @@ function buildLazyThumbnailFn(
 		if (
 			cachedThumbnail &&
 			cachedScale !== undefined &&
-			cachedScale >= effectiveScale
+			cachedScale >= effectiveScale &&
+			cachedSnapshotWidth === snapshotWidth
 		) {
 			return cachedThumbnail;
 		}
@@ -128,12 +208,14 @@ function buildLazyThumbnailFn(
 		if (
 			inFlight &&
 			inFlightScale !== undefined &&
-			inFlightScale >= effectiveScale
+			inFlightScale >= effectiveScale &&
+			inFlightSnapshotWidth === snapshotWidth
 		) {
 			return inFlight;
 		}
 
 		const localScale = effectiveScale;
+		const localSnapshotWidth = snapshotWidth;
 		let localPromise: Promise<IntermediateImage | undefined> =
 			Promise.resolve(undefined);
 		localPromise = (async () => {
@@ -141,17 +223,25 @@ function buildLazyThumbnailFn(
 				const thumbnailImage = await captureThumbnail(
 					page,
 					texts,
+					images,
 					width,
 					height,
 					localScale,
 					options,
+					sourceDoc ?? thumbnailSourceDocuments.get(page),
+					styleContainers ?? thumbnailStyleContainers.get(page),
+					localSnapshotWidth,
+					ownerDocument,
 				);
 				if (
 					thumbnailImage &&
-					(cachedScale === undefined || localScale >= cachedScale)
+					(cachedScale === undefined ||
+						localScale >= cachedScale ||
+						cachedSnapshotWidth !== localSnapshotWidth)
 				) {
 					cachedThumbnail = thumbnailImage;
 					cachedScale = localScale;
+					cachedSnapshotWidth = localSnapshotWidth;
 					(page as unknown as { _thumbnail?: IntermediateImage })._thumbnail =
 						thumbnailImage;
 				}
@@ -160,46 +250,117 @@ function buildLazyThumbnailFn(
 				if (inFlight === localPromise) {
 					inFlight = null;
 					inFlightScale = undefined;
+					inFlightSnapshotWidth = undefined;
 				}
 			}
 		})();
 
 		inFlight = localPromise;
 		inFlightScale = localScale;
+		inFlightSnapshotWidth = localSnapshotWidth;
 		return localPromise;
 	};
+}
+
+type PageCanvasCssSize = {
+	pageWidth: number;
+	pageHeight: number;
+};
+
+async function measureDocumentCanvasCssSize(
+	doc: Document,
+	layoutWidth: number,
+	fallbackSize: PageCanvasCssSize,
+): Promise<PageCanvasCssSize> {
+	try {
+		const target = (doc.documentElement ?? doc.body) as HTMLElement | null;
+		if (!target) return fallbackSize;
+
+		const scale = 1;
+		const loader = __getHtml2CanvasLoader();
+		const html2canvas = await loader();
+		const canvas = await html2canvas(target, {
+			backgroundColor: "#ffffff",
+			scale,
+			useCORS: true,
+			width: layoutWidth,
+			windowWidth: layoutWidth,
+		});
+		const canvasHeight =
+			typeof canvas.height === "number" ? canvas.height : Number.NaN;
+		const normalizedCanvasHeight = canvasHeight / scale;
+
+		if (
+			Number.isFinite(normalizedCanvasHeight) &&
+			normalizedCanvasHeight > 0
+		) {
+			return {
+				pageWidth: layoutWidth,
+				pageHeight: normalizedCanvasHeight,
+			};
+		}
+
+		devConsoleLog("[encode] page size canvas measurement invalid", {
+			canvasHeight,
+			layoutWidth,
+		});
+	} catch (err) {
+		devConsoleLog("[encode] page size canvas measurement failed", err);
+	}
+
+	return fallbackSize;
 }
 
 async function captureThumbnail(
 	page: IntermediatePage,
 	texts: IntermediateText[],
+	/** 页面中的图片对象，即使排除文本时也会传入渲染 */
+	images: IntermediateImage[],
 	width: number,
 	height: number,
 	scale: number,
 	options?: BackgroundDecodeOptions,
+	sourceDoc?: Document,
+	styleContainers?: readonly WhitelistedStyleContainerModel[],
+	snapshotWidth?: number,
+	ownerDocument?: Document,
 ): Promise<IntermediateImage | undefined> {
 	await Promise.resolve();
 	let handle: OffscreenPageHandle | undefined;
 
 	try {
-		const doc = globalThis.document;
+		const doc = ownerDocument ?? globalThis.document;
 		if (!doc) {
 			devConsoleLog("[encode] thumbnail capture skipped: document unavailable");
 			return undefined;
 		}
+		const effectiveSourceDoc = sourceDoc ?? thumbnailSourceDocuments.get(page);
+		const effectiveStyleContainers =
+			styleContainers ?? thumbnailStyleContainers.get(page);
 
 		handle = buildOffscreenPageElement(
-			{ id: page.id, width, height, texts },
+			{ id: page.id, width, height, texts, images },
 			doc,
-			{ excludeTextFromBackground: options?.excludeTextFromBackground },
+			{
+				excludeTextFromBackground: options?.excludeTextFromBackground,
+				excludeImagesFromBackground: options?.excludeImagesFromBackground,
+				sourceDoc: effectiveSourceDoc,
+				styleContainers: effectiveStyleContainers,
+				snapshotWidth,
+			},
 		);
 		const loader = __getHtml2CanvasLoader();
 		const html2canvas = await loader();
-		const canvas = await html2canvas(handle.element, {
+		const canvasOptions: Record<string, unknown> = {
 			backgroundColor: "#ffffff",
 			scale,
 			useCORS: true,
-		});
+		};
+		if (snapshotWidth !== undefined) {
+			canvasOptions.width = snapshotWidth;
+			canvasOptions.windowWidth = snapshotWidth;
+		}
+		const canvas = await html2canvas(handle.element, canvasOptions);
 		const dataUrl = canvas.toDataURL("image/png");
 		return new IntermediateImage({
 			id: `${page.id}-thumbnail`,
@@ -218,29 +379,6 @@ async function captureThumbnail(
 	} finally {
 		handle?.cleanup();
 	}
-}
-
-/**
- * 转义文本为安全的 HTML 文本（避免注入）。
- */
-function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;")
-		.replace(/'/g, "&#39;");
-}
-
-/**
- * 将数值转换为 CSS 长度：
- * - 绝对值 < 1 认为是百分比（例如 0.5 -> 50%）
- * - 否则使用像素 px
- */
-function cssPxOrPercent(val: number): string {
-	if (!Number.isFinite(val)) return "0px";
-	if (Math.abs(val) < 1) return `${(val * 100).toFixed(4)}%`;
-	return `${val}px`;
 }
 
 /**
@@ -499,6 +637,7 @@ function parseInlineStyle(el: Element): ParsedInlineStyle {
 
 type PendingTextSegment = {
 	content: string;
+	sourceOrder: number;
 	style: {
 		fontSize: number;
 		lineHeight: number;
@@ -529,8 +668,13 @@ type RectLike = {
 
 type RenderedTextSegment = {
 	content: string;
+	sourceOrder: number;
 	style: ComputedTextStyle;
 	rect: RectLike;
+};
+
+type SourceOrderedIntermediate = {
+	sourceOrder?: unknown;
 };
 
 type Matrix2D = {
@@ -562,6 +706,37 @@ function isValidRect(rect: RectLike | null | undefined): rect is RectLike {
 		rect.width > 0 &&
 		rect.height > 0
 	);
+}
+
+function buildDomSourceOrderMap(doc: Document): WeakMap<Node, number> {
+	const orderMap = new WeakMap<Node, number>();
+	let nextOrder = 0;
+
+	const walk = (node: Node) => {
+		// 内部排序提示：按 DOM DFS 访问顺序编号，只用于 encode 混排合并，不进入最终类型契约。
+		orderMap.set(node, nextOrder++);
+		for (const child of Array.from(node.childNodes)) walk(child);
+	};
+
+	if (doc.body) walk(doc.body);
+	return orderMap;
+}
+
+function readDomSourceOrder(
+	sourceOrderMap: WeakMap<Node, number>,
+	node: Node,
+	fallback: number,
+): number {
+	return sourceOrderMap.get(node) ?? fallback;
+}
+
+function readIntermediateSourceOrder(
+	item: IntermediateText | IntermediateImage,
+): number | undefined {
+	const sourceOrder = (item as SourceOrderedIntermediate).sourceOrder;
+	return typeof sourceOrder === "number" && Number.isFinite(sourceOrder)
+		? sourceOrder
+		: undefined;
 }
 
 function estimateFontMetrics(
@@ -940,28 +1115,10 @@ export class HtmlParser extends DocumentParser {
 		return HtmlParser.decode(intermediateDocument);
 	}
 
-	// 复用的内部样式片段
-	private static getFragmentStyle(): string {
-		return `
-      .hamster-note-document { position: relative; display: block; contain: layout style size; }
-      .hamster-note-document .hamster-note-page { position: relative; overflow: hidden; background-repeat: no-repeat; background-position: top center; background-size: contain; }
-      .hamster-note-document .hamster-note-text { position: absolute; white-space: pre; transform-origin: 0 0; }
-    `.replace(/\n\s+/g, " ");
-	}
-
-	// 复用的单个文本渲染
-	private static renderTextSpan(t: IntermediateText): string {
-		const style = cssStyleRecordToString(
-			formatTextCssStyle(computeTextStyle(t)),
-		);
-		return `<span class="hamster-note-text" id="${escapeHtml(t.id)}" style="${escapeHtml(style)}">${escapeHtml(t.content)}</span>`;
-	}
-
-	// 复用的页面渲染
-	private static async lazyRenderPageDiv(
+	private static async buildDecodePagePayload(
 		p: IntermediatePage,
 		options?: DecodeOptions,
-	): Promise<string> {
+	): Promise<DecodeHtmlPagePayload> {
 		const pageContent = Array.isArray(
 			(p as unknown as { content?: unknown[] }).content,
 		)
@@ -970,41 +1127,48 @@ export class HtmlParser extends DocumentParser {
 				? (p as unknown as { texts: unknown[] }).texts
 				: [];
 
-		const thumbnailTexts = pageContent.filter(isIntermediateTextLike);
-
-		const texts = thumbnailTexts
-			// 在调用 renderTextSpan 前，将 textControl 覆盖应用到文本对象上
-			.map((t) =>
-				HtmlParser.renderTextSpan(
-					applyDecodeTextControl(t, options?.textControl),
-				),
-			)
-			.join("");
-
+		const serializedContent = pageContent
+			.map(serializeWorkerContentItem)
+			.filter((item): item is NonNullable<typeof item> => item != null);
 		const bgOptions = options?.background;
 
 		if (bgOptions?.includeBackground === false) {
-			return `<div class="hamster-note-page" id="${escapeHtml(p.id)}" style="${escapeHtml(`width:${cssPxOrPercent(p.width)};height:${cssPxOrPercent(p.height)}`)}">${texts}</div>`;
+			return {
+				id: p.id,
+				width: p.width,
+				height: p.height,
+				content: serializedContent,
+			};
 		}
 
+		const thumbnailTexts = pageContent.filter(isIntermediateTextLike);
+		const thumbnailImages = pageContent.filter(isIntermediateImageLike);
 		const quality =
 			typeof bgOptions?.backgroundQuality === "number"
 				? bgOptions.backgroundQuality
 				: 0.3;
 
 		const thumb =
-			bgOptions?.excludeTextFromBackground === true
+			(bgOptions?.excludeTextFromBackground === true ||
+				bgOptions?.excludeImagesFromBackground === true)
 				? await captureThumbnail(
 						p,
 						thumbnailTexts,
+						thumbnailImages,
 						p.width,
 						p.height,
 						quality,
 						bgOptions,
 					)
 				: await p.getThumbnail(quality);
-		const bg = thumb?.src ? `background-image:url('${thumb.src}');` : "";
-		return `<div class="hamster-note-page" id="${escapeHtml(p.id)}" style="${escapeHtml(`width:${cssPxOrPercent(p.width)};height:${cssPxOrPercent(p.height)};${bg}`)}">${texts}</div>`;
+
+		return {
+			id: p.id,
+			width: p.width,
+			height: p.height,
+			content: serializedContent,
+			backgroundSrc: thumb?.src,
+		};
 	}
 
 	/**
@@ -1203,6 +1367,8 @@ export class HtmlParser extends DocumentParser {
 
 	private static collectRenderedTextSegments(
 		doc: Document,
+		excludeMatcher: (el: Element) => boolean = () => false,
+		sourceOrderMap: WeakMap<Node, number> = buildDomSourceOrderMap(doc),
 	): RenderedTextSegment[] {
 		const body = doc.body;
 		const defaultFontSize = 16;
@@ -1221,6 +1387,11 @@ export class HtmlParser extends DocumentParser {
 			const normalized = normalizeTextContent(raw);
 
 			if (!parentElement || !normalized) {
+				currentNode = walker.nextNode();
+				continue;
+			}
+
+			if (excludeMatcher(parentElement)) {
 				currentNode = walker.nextNode();
 				continue;
 			}
@@ -1248,6 +1419,11 @@ export class HtmlParser extends DocumentParser {
 				lineSegments.forEach((lineSegment) => {
 					segments.push({
 						content: lineSegment.content,
+						sourceOrder: readDomSourceOrder(
+							sourceOrderMap,
+							textNode,
+							segments.length,
+						),
 						style,
 						rect: {
 							left: lineSegment.rect.left,
@@ -1262,6 +1438,11 @@ export class HtmlParser extends DocumentParser {
 				if (rect) {
 					segments.push({
 						content: normalized,
+						sourceOrder: readDomSourceOrder(
+							sourceOrderMap,
+							textNode,
+							segments.length,
+						),
 						style,
 						rect: {
 							left: rect.left,
@@ -1279,10 +1460,118 @@ export class HtmlParser extends DocumentParser {
 		return segments;
 	}
 
+	/**
+	 * 从 Document 中收集所有 <img> 元素，转换为 IntermediateImage 对象。
+	 * 对于非 data URL 的图片，使用 canvas 转换为 data URL 以确保在 srcdoc 上下文中可用。
+	 */
+	private static async collectImagesFromDocument(
+		doc: Document,
+		id: string,
+		excludeMatcher: (el: Element) => boolean = () => false,
+		sourceOrderMap: WeakMap<Node, number> = buildDomSourceOrderMap(doc),
+	): Promise<IntermediateImage[]> {
+		const images: IntermediateImage[] = [];
+		const imgElements = doc.querySelectorAll("img");
+		const bodyRect = doc.body.getBoundingClientRect();
+		const originX = Number.isFinite(bodyRect.left) ? bodyRect.left : 0;
+		const originY = Number.isFinite(bodyRect.top) ? bodyRect.top : 0;
+
+		for (let i = 0; i < imgElements.length; i++) {
+			const img = imgElements[i];
+			if (excludeMatcher(img)) continue;
+
+			const src = img.getAttribute("src") || "";
+			if (!src) continue;
+			const style = img.ownerDocument.defaultView?.getComputedStyle(img);
+			if (style?.display === "none" || style?.visibility === "hidden") continue;
+
+			const rect = img.getBoundingClientRect();
+			if (!rect || rect.width === 0 || rect.height === 0) continue;
+
+			const left = rect.left - originX;
+			const top = rect.top - originY;
+			const right = left + rect.width;
+			const bottom = top + rect.height;
+			const polygon: [[number, number], [number, number], [number, number], [number, number]] = [
+				[left, top],
+				[right, top],
+				[right, bottom],
+				[left, bottom],
+			];
+
+			let dataUrl = src;
+			if (!src.startsWith("data:")) {
+				try {
+					dataUrl = await HtmlParser.imageToDataUrl(img);
+				} catch (e) {
+					devConsoleLog("[collectImagesFromDocument] 图片转换失败，保留原始 src", {
+						src: src.slice(0, 100),
+						error: e,
+					});
+					dataUrl = src;
+				}
+			}
+
+			images.push(
+				Object.assign(
+					new IntermediateImage({
+						id: `${id}-page-1-image-${i}`,
+						src: dataUrl,
+						polygon,
+						opacity: 1,
+					}),
+					{
+						sourceOrder: readDomSourceOrder(sourceOrderMap, img, i),
+					},
+				),
+			);
+		}
+
+		devConsoleLog("[collectImagesFromDocument] 图片收集完成", {
+			count: images.length,
+		});
+		return images;
+	}
+
+	private static imageToDataUrl(img: HTMLImageElement): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const canvas = document.createElement("canvas");
+			const ctx = canvas.getContext("2d");
+			if (!ctx) {
+				reject(new Error("无法创建 canvas context"));
+				return;
+			}
+
+			const onLoad = () => {
+				canvas.width = img.naturalWidth || img.width;
+				canvas.height = img.naturalHeight || img.height;
+				ctx.drawImage(img, 0, 0);
+				try {
+					const dataUrl = canvas.toDataURL("image/png");
+					resolve(dataUrl);
+				} catch (e) {
+					reject(e);
+				}
+			};
+
+			if (img.complete) {
+				onLoad();
+			} else {
+				img.addEventListener("load", onLoad, { once: true });
+				img.addEventListener(
+					"error",
+					() => reject(new Error("图片加载失败")),
+					{ once: true },
+				);
+			}
+		});
+	}
+
 	private static buildRenderedTexts(
 		doc: Document,
 		id: string,
 		segments: RenderedTextSegment[],
+		images: IntermediateImage[],
 	): { texts: IntermediateText[]; pageWidth: number; pageHeight: number } {
 		const bodyRect = doc.body.getBoundingClientRect();
 		const originX = Number.isFinite(bodyRect.left) ? bodyRect.left : 0;
@@ -1314,23 +1603,26 @@ export class HtmlParser extends DocumentParser {
 				height,
 			);
 
-			return new IntermediateText({
-				id: `${id}-page-1-text-${index}`,
-				content: segment.content,
-				fontSize: segment.style.fontSize,
-				fontFamily: segment.style.fontFamily,
-				fontWeight: segment.style.fontWeight,
-				italic: segment.style.italic,
-				color: segment.style.color,
-				polygon,
-				lineHeight: segment.style.lineHeight,
-				ascent,
-				descent,
-				vertical: segment.style.writingMode === "vertical-rl",
-				dir: detectDir(segment.content),
-				skew: 0,
-				isEOL: !isSameLine,
-			});
+			return Object.assign(
+				new IntermediateText({
+					id: `${id}-page-1-text-${index}`,
+					content: segment.content,
+					fontSize: segment.style.fontSize,
+					fontFamily: segment.style.fontFamily,
+					fontWeight: segment.style.fontWeight,
+					italic: segment.style.italic,
+					color: segment.style.color,
+					polygon,
+					lineHeight: segment.style.lineHeight,
+					ascent,
+					descent,
+					vertical: segment.style.writingMode === "vertical-rl",
+					dir: detectDir(segment.content),
+					skew: 0,
+					isEOL: !isSameLine,
+				}),
+				{ sourceOrder: segment.sourceOrder },
+			);
 		});
 
 		const maxRight = texts.reduce(
@@ -1341,13 +1633,31 @@ export class HtmlParser extends DocumentParser {
 			(max, text) => Math.max(max, text.polygon[2][1]),
 			0,
 		);
+		const maxImageRight = images.reduce(
+			(max, image) => Math.max(max, image.polygon[1][0]),
+			0,
+		);
+		const maxImageBottom = images.reduce(
+			(max, image) => Math.max(max, image.polygon[2][1]),
+			0,
+		);
+		const viewportWidth = Math.max(
+			doc.documentElement.clientWidth,
+			doc.body.clientWidth,
+			Number.isFinite(bodyRect.width) ? bodyRect.width : 0,
+		);
+		const viewportHeight = Math.max(
+			doc.documentElement.clientHeight,
+			doc.body.clientHeight,
+			Number.isFinite(bodyRect.height) ? bodyRect.height : 0,
+		);
 		const pageWidth = Math.max(
 			1,
 			Math.round(
 				Math.max(
-					doc.documentElement.scrollWidth,
-					doc.body.scrollWidth,
+					viewportWidth,
 					maxRight,
+					maxImageRight,
 				),
 			),
 		);
@@ -1355,9 +1665,9 @@ export class HtmlParser extends DocumentParser {
 			1,
 			Math.round(
 				Math.max(
-					doc.documentElement.scrollHeight,
-					doc.body.scrollHeight,
+					viewportHeight,
 					maxBottom,
+					maxImageBottom,
 				),
 			),
 		);
@@ -1378,6 +1688,7 @@ export class HtmlParser extends DocumentParser {
 			iframeDocument: Document;
 			iframeWindow: Window;
 		}) => T | Promise<T>,
+		width = 1024,
 	): Promise<T> {
 		// 验证必需的 DOM API
 		const hostDocument = resolveIframeHostDocument();
@@ -1392,7 +1703,7 @@ export class HtmlParser extends DocumentParser {
 		iframe.style.position = "absolute";
 		iframe.style.left = "-10000px";
 		iframe.style.top = "0";
-		iframe.style.width = "1024px";
+		iframe.style.width = `${width}px`;
 		iframe.style.height = "2048px";
 		iframe.style.border = "0";
 		iframe.style.opacity = "0";
@@ -1471,6 +1782,8 @@ export class HtmlParser extends DocumentParser {
 	private static collectTextsFromDocumentFallback(
 		doc: Document,
 		id: string,
+		excludeMatcher: (el: Element) => boolean = () => false,
+		sourceOrderMap: WeakMap<Node, number> = buildDomSourceOrderMap(doc),
 	): { title: string; texts: IntermediateText[]; pageHeight: number } {
 		devConsoleLog("[collectTextsFromDocument] 开始解析 Document", { id });
 		const title = doc.title || "Untitled HTML";
@@ -1535,28 +1848,31 @@ export class HtmlParser extends DocumentParser {
 				const width = segment.metrics.width;
 				const height = segment.metrics.height;
 				texts.push(
-					new IntermediateText({
-						id: `${id}-page-1-text-${idx++}`,
-						content: segment.content,
-						fontSize: segment.style.fontSize,
-						fontFamily: segment.style.fontFamily,
-						fontWeight: segment.style.fontWeight,
-						italic: segment.style.italic,
-						color: segment.style.color,
-						polygon: [
-							[x, y],
-							[x + width, y],
-							[x + width, y + height],
-							[x, y + height],
-						],
-						lineHeight: segment.style.lineHeight,
-						ascent: segment.metrics.ascent,
-						descent: segment.metrics.descent,
-						vertical: segment.style.writingMode === "vertical-rl",
-						dir: detectDir(segment.content),
-						skew: 0,
-						isEOL: index === pendingLine.length - 1,
-					}),
+					Object.assign(
+						new IntermediateText({
+							id: `${id}-page-1-text-${idx++}`,
+							content: segment.content,
+							fontSize: segment.style.fontSize,
+							fontFamily: segment.style.fontFamily,
+							fontWeight: segment.style.fontWeight,
+							italic: segment.style.italic,
+							color: segment.style.color,
+							polygon: [
+								[x, y],
+								[x + width, y],
+								[x + width, y + height],
+								[x, y + height],
+							],
+							lineHeight: segment.style.lineHeight,
+							ascent: segment.metrics.ascent,
+							descent: segment.metrics.descent,
+							vertical: segment.style.writingMode === "vertical-rl",
+							dir: detectDir(segment.content),
+							skew: 0,
+							isEOL: index === pendingLine.length - 1,
+						}),
+						{ sourceOrder: segment.sourceOrder },
+					),
 				);
 				xCursor += width;
 			});
@@ -1569,6 +1885,10 @@ export class HtmlParser extends DocumentParser {
 			if (node.nodeType === ELEMENT_NODE) {
 				const el = node as Element;
 				devConsoleLog("[walk] 遇到元素节点", { tagName: el.tagName });
+				if (excludeMatcher(el)) {
+					devConsoleLog("[walk] 跳过排除选择器命中的子树", el.tagName);
+					return;
+				}
 				if (skipTags.has(el.tagName)) {
 					devConsoleLog("[walk] 跳过标签", el.tagName);
 					return;
@@ -1627,6 +1947,7 @@ export class HtmlParser extends DocumentParser {
 
 			pendingLine.push({
 				content,
+				sourceOrder: readDomSourceOrder(sourceOrderMap, node, pendingLine.length),
 				style: sty,
 				metrics: { width, height, ascent, descent },
 			});
@@ -1647,38 +1968,65 @@ export class HtmlParser extends DocumentParser {
 		return { title, texts, pageHeight };
 	}
 
-	private static collectTextsFromDocument(
+	private static async collectTextsFromDocument(
 		doc: Document,
 		id: string,
-	): {
+		excludeMatcher: (el: Element) => boolean = () => false,
+		width = 1024,
+	): Promise<{
 		title: string;
 		texts: IntermediateText[];
+		images: IntermediateImage[];
 		pageWidth: number;
 		pageHeight: number;
-	} {
+	}> {
 		devConsoleLog("[collectTextsFromDocument] 开始解析 Document", { id });
 		const title = doc.title || "Untitled HTML";
+		const sourceOrderMap = buildDomSourceOrderMap(doc);
 
-		doc.documentElement.style.width = "1024px";
+		doc.documentElement.style.width = `${width}px`;
 		doc.body.style.margin = "0";
 		doc.body.style.padding = "0";
 
-		const renderedSegments = HtmlParser.collectRenderedTextSegments(doc);
+		const renderedSegments = HtmlParser.collectRenderedTextSegments(
+			doc,
+			excludeMatcher,
+			sourceOrderMap,
+		);
+		const images = await HtmlParser.collectImagesFromDocument(
+			doc,
+			id,
+			excludeMatcher,
+			sourceOrderMap,
+		);
+
 		if (renderedSegments.length > 0) {
-			const rendered = HtmlParser.buildRenderedTexts(doc, id, renderedSegments);
+			const rendered = HtmlParser.buildRenderedTexts(
+				doc,
+				id,
+				renderedSegments,
+				images,
+			);
 			devConsoleLog("[collectTextsFromDocument] 使用真实 DOM 布局采集完成", {
 				title,
 				textCount: rendered.texts.length,
+				imageCount: images.length,
 				pageWidth: rendered.pageWidth,
 				pageHeight: rendered.pageHeight,
 			});
-			return { title, ...rendered };
+			return { title, ...rendered, images };
 		}
 
-		const fallback = HtmlParser.collectTextsFromDocumentFallback(doc, id);
+		const fallback = HtmlParser.collectTextsFromDocumentFallback(
+			doc,
+			id,
+			excludeMatcher,
+			sourceOrderMap,
+		);
 		return {
 			title,
 			texts: fallback.texts,
+			images,
 			pageWidth: 800,
 			pageHeight: fallback.pageHeight,
 		};
@@ -1767,7 +2115,10 @@ export class HtmlParser extends DocumentParser {
 	 * 4) 估算每段文本的 width/height 与 y 累进，用于简单布局
 	 * 5) 返回 HtmlDocument 实例（包装 IntermediateDocument）
 	 */
-	static async encode(fileOrBuffer: ParserInput): Promise<HtmlDocument> {
+	static async encode(
+		fileOrBuffer: ParserInput,
+		options?: EncodeOptions,
+	): Promise<HtmlDocument> {
 		devConsoleLog("[encode] 开始编码 HTML", {
 			inputType: fileOrBuffer.constructor?.name || typeof fileOrBuffer,
 		});
@@ -1776,7 +2127,6 @@ export class HtmlParser extends DocumentParser {
 			byteLength: buffer.byteLength,
 		});
 
-		// 1) 解码为字符串；失败则抛出异常
 		const html = HtmlParser.decodeBufferToString(buffer);
 		if (html == null) {
 			devConsoleError("[encode] 无法将输入解码为 HTML 文本");
@@ -1787,57 +2137,119 @@ export class HtmlParser extends DocumentParser {
 		const id = `html-${Date.now()}`;
 		let title = "Untitled HTML";
 		let texts: IntermediateText[] = [];
+		let images: IntermediateImage[] = [];
 		let pageWidth = 800;
 		let pageHeight = 0;
+		let thumbnailSourceDoc: Document | undefined;
+		let thumbnailOwnerDoc: Document | undefined;
+		let capturedStyleContainers: WhitelistedStyleContainerModel[] | undefined;
+		let preloadThumbnail = false;
+		const snapshotWidth = resolveSnapshotWidth(options);
+		const layoutWidth = snapshotWidth ?? 1024;
 
-		// 2) 通过 iframe 文档解析 HTML，并收集文本节点
 		const result = await HtmlParser.withIframeDocument(
 			html,
-			async ({ iframeDocument }) => {
-				return HtmlParser.collectTextsFromDocument(iframeDocument, id);
+			async ({ iframe, iframeDocument }) => {
+				thumbnailSourceDoc = iframeDocument;
+				thumbnailOwnerDoc = iframe.ownerDocument;
+				const excludeMatcher = buildExcludeMatcher(
+					iframeDocument,
+					options?.excludeSelectors,
+				);
+				preloadThumbnail = hasInlineBackgroundImage(
+					iframeDocument,
+					excludeMatcher,
+				);
+				const collected = await HtmlParser.collectTextsFromDocument(
+					iframeDocument,
+					id,
+					excludeMatcher,
+					layoutWidth,
+				);
+				const measuredSize = await measureDocumentCanvasCssSize(
+					iframeDocument,
+					layoutWidth,
+					{
+						pageWidth: collected.pageWidth,
+						pageHeight: collected.pageHeight,
+					},
+				);
+				capturedStyleContainers =
+					captureWhitelistedStyleContainerModels(iframeDocument);
+				return {
+					...collected,
+					pageWidth: measuredSize.pageWidth,
+					pageHeight: measuredSize.pageHeight,
+				};
 			},
+			layoutWidth,
 		);
 		title = result.title || title;
 		texts = result.texts;
+		images = result.images;
 		pageWidth = result.pageWidth;
 		pageHeight = result.pageHeight;
 		devConsoleLog("[encode] iframe DOM 解析完成", {
 			title,
 			textCount: texts.length,
+			imageCount: images.length,
 			pageWidth,
 			pageHeight,
 		});
 
-		// 3) 构建单页文档的惰性 page 列表
+		const workerPayload = await runEncodeDocumentBuildInWorker({
+			id,
+			title,
+			pageWidth,
+			pageHeight,
+			texts: texts.map((text) => ({
+				...IntermediateText.serialize(text),
+				sourceOrder: readIntermediateSourceOrder(text),
+			})),
+			images: images.map((image) => ({
+				...IntermediateImage.serialize(image),
+				sourceOrder: readIntermediateSourceOrder(image),
+			})),
+		});
+
 		const infoList = [
 			{
-				id: `${id}-page-1`,
+				id: workerPayload.page.id,
 				pageNumber: 1,
-				size: { x: pageWidth, y: pageHeight },
+				size: { x: workerPayload.page.width, y: workerPayload.page.height },
 				getData: async () => {
 					const page = new IntermediatePage({
-						id: `${id}-page-1`,
-						number: 1,
-						width: pageWidth,
-						height: pageHeight,
-						texts,
+						...workerPayload.page,
 						thumbnail: undefined,
 					});
 					page.setGetThumbnail(
-						buildLazyThumbnailFn(page, texts, pageWidth, pageHeight),
+						buildLazyThumbnailFn(
+							page,
+							texts,
+							images,
+							pageWidth,
+							pageHeight,
+							thumbnailSourceDoc,
+							capturedStyleContainers,
+							snapshotWidth,
+							thumbnailOwnerDoc,
+						),
 					);
 					return page;
 				},
 			},
 		];
 		const pagesMap = IntermediatePageMap.makeByInfoList(infoList);
+		if (preloadThumbnail) {
+			const page = await pagesMap.getPageByPageNumber(1);
+			await page?.getThumbnail(0.3);
+		}
 		const intermediateDocument = new IntermediateDocument({
-			id,
-			title,
+			id: workerPayload.id,
+			title: workerPayload.title,
 			pagesMap,
 		});
 
-		// 4) 返回 HtmlDocument 包装
 		const htmlDoc = new HtmlDocument(intermediateDocument);
 		devConsoleLog("[encode] 编码完成，返回 HtmlDocument", {
 			id,
@@ -1859,16 +2271,16 @@ export class HtmlParser extends DocumentParser {
 			docId: intermediateDocument.id,
 			title: intermediateDocument.title,
 		});
-		// 片段 CSS：只包含必要的定位/换行/变换等基础样式
 		const pages = await intermediateDocument.pages;
 		devConsoleLog("[decodeToHtml] 获取到页面数", pages.length);
-		const style = HtmlParser.getFragmentStyle();
 
-		const pageHtml = await Promise.all(
-			pages.map((p) => HtmlParser.lazyRenderPageDiv(p, options)),
+		const workerPages = await Promise.all(
+			pages.map((p) => HtmlParser.buildDecodePagePayload(p, options)),
 		);
-
-		const result = `<div class="hamster-note-document"><style>${style}</style>${pageHtml.join("")}</div>`;
+		const result = await runDecodeHtmlInWorker({
+			pages: workerPages,
+			options,
+		});
 		devConsoleLog("[decodeToHtml] HTML 片段渲染完成", {
 			length: result.length,
 		});
@@ -1912,6 +2324,7 @@ export class HtmlParser extends DocumentParser {
 // Re-export 类型供 demo 使用（浏览器无法解析裸模块标识符 @hamster-note/types）
 export {
 	type IntermediateDocument,
+	IntermediateImage,
 	IntermediatePage,
 	IntermediateText,
 } from "@hamster-note/types";

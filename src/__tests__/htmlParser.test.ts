@@ -1,14 +1,16 @@
 import {
   IntermediateDocument,
+  IntermediateImage,
   IntermediatePage,
   IntermediatePageMap,
   IntermediateText,
   TextDir
 } from '@hamster-note/types'
 import { HtmlDocument } from '../HtmlDocument.js'
-import { HtmlParser, setHtml2CanvasLoader } from '../index'
+import { type EncodeOptions, HtmlParser, setHtml2CanvasLoader } from '../index'
 import { withDomDocument, withGlobalsRemoved } from '../testUtils/domTestUtils.js'
 import { installFakeHtml2Canvas } from '../testUtils/html2canvasTestUtils.js'
+import { computeTargetHeight, computeTargetWidth } from '../textGeometry.js'
 import { resetPretextAdapter, setPretextAdapter } from '../textMeasurement.js'
 
 const exposeGlobalDocument = (document: Document): (() => void) => {
@@ -497,10 +499,10 @@ describe('HtmlParser', () => {
           } as CSSStyleDeclaration
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           title: string
           texts: Array<{
             content: string
@@ -508,11 +510,13 @@ describe('HtmlParser', () => {
             fontWeight: number
             italic: boolean
             polygon: number[][]
+            ascent: number
+            descent: number
             isEOL: boolean
           }>
           pageWidth: number
           pageHeight: number
-        })(testDocument, 'doc-1')
+        }>)(testDocument, 'doc-1')
 
         expect(result.title).toBe('Rendered Layout')
         expect(result.pageWidth).toBe(640)
@@ -522,9 +526,116 @@ describe('HtmlParser', () => {
         expect(result.texts[1]?.polygon).toEqual([[45, 0], [95, 0], [95, 18], [45, 18]])
         expect(result.texts[0]?.fontSize).toBe(16)
         expect(result.texts[1]?.fontSize).toBe(20)
+        expect(result.texts.map((text) => text.ascent)).toEqual([13, 16])
+        expect(result.texts.map((text) => text.descent)).toEqual([5, 4])
         expect(result.texts[1]?.fontWeight).toBe(700)
         expect(result.texts[1]?.italic).toBe(true)
         expect(result.texts.map((text) => text.isEOL)).toEqual([false, true])
+      } finally {
+        testDocument.title = originalTitle
+        testDocument.body.innerHTML = originalBodyHtml
+        testDocument.createRange = originalCreateRange
+        testDocument.body.getBoundingClientRect = originalBodyRect
+        defaultView.getComputedStyle = originalGetComputedStyle
+      }
+    })
+  })
+
+  it('collectTextsFromDocument 不应被长内容撑大的 scrollWidth 放大页面宽度', async () => {
+    await withDomDocument(async ({ document, DOMRect }) => {
+      setPretextAdapter({
+        measure: (text) => ({
+          width: text.length * 8,
+          height: 18
+        })
+      })
+
+      const parserRef = HtmlParser as unknown as Record<string, unknown>
+      const testDocument = document
+      const originalTitle = testDocument.title
+      const originalBodyHtml = testDocument.body.innerHTML
+      const originalCreateRange = testDocument.createRange.bind(testDocument)
+      const originalBodyRect = testDocument.body.getBoundingClientRect.bind(testDocument.body)
+      const defaultView = testDocument.defaultView
+      if (!defaultView) throw new Error('expected defaultView to exist in test document')
+      const originalGetComputedStyle = defaultView.getComputedStyle.bind(defaultView)
+
+      try {
+        testDocument.title = 'Inflated Scroll Width'
+        testDocument.body.innerHTML = '<p><span id="short-text">Preview text</span></p>'
+
+        Object.defineProperty(testDocument.documentElement, 'scrollWidth', {
+          configurable: true,
+          value: 30000
+        })
+        Object.defineProperty(testDocument.documentElement, 'scrollHeight', {
+          configurable: true,
+          value: 12000
+        })
+        Object.defineProperty(testDocument.body, 'scrollWidth', {
+          configurable: true,
+          value: 30000
+        })
+        Object.defineProperty(testDocument.body, 'scrollHeight', {
+          configurable: true,
+          value: 12000
+        })
+
+        const bodyRect = new DOMRect(10, 20, 320, 240)
+        testDocument.body.getBoundingClientRect =
+          (() => bodyRect) as typeof testDocument.body.getBoundingClientRect
+
+        const textNode = testDocument.querySelector('#short-text')?.firstChild as Text
+        const textRect = new DOMRect(10, 20, 96, 18)
+
+        testDocument.createRange = (() => {
+          let currentNode: Text | null = null
+
+          return {
+            selectNodeContents(node: Node) {
+              currentNode = node as Text
+            },
+            setStart(node: Node) {
+              currentNode = node as Text
+            },
+            setEnd(node: Node) {
+              currentNode = node as Text
+            },
+            getClientRects() {
+              return currentNode === textNode ? [textRect] : []
+            },
+            getBoundingClientRect() {
+              return currentNode === textNode ? textRect : null
+            },
+            detach() {}
+          } as unknown as Range
+        }) as typeof testDocument.createRange
+
+        defaultView.getComputedStyle = (() => ({
+          fontSize: '16px',
+          lineHeight: '20px',
+          fontWeight: '400',
+          fontStyle: 'normal',
+          color: 'rgb(0, 0, 0)',
+          fontFamily: 'sans-serif',
+          writingMode: 'horizontal-tb',
+          transform: 'none',
+          transformOrigin: '0px 0px'
+        } as CSSStyleDeclaration)) as typeof defaultView.getComputedStyle
+
+        const result = await (parserRef.collectTextsFromDocument as (
+          doc: Document,
+          id: string
+        ) => Promise<{
+          texts: Array<{ content: string; polygon: number[][] }>
+          pageWidth: number
+          pageHeight: number
+        }>)(testDocument, 'inflated-scroll')
+
+        expect(result.texts.map((text) => text.content)).toEqual(['Preview text'])
+        expect(result.texts[0]?.polygon).toEqual([[0, 0], [96, 0], [96, 18], [0, 18]])
+        expect(result.pageWidth).toBe(320)
+        expect(result.pageHeight).toBe(240)
       } finally {
         testDocument.title = originalTitle
         testDocument.body.innerHTML = originalBodyHtml
@@ -727,17 +838,17 @@ describe('HtmlParser', () => {
           } as CSSStyleDeclaration
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           texts: Array<{
             content: string
             polygon: number[][]
             vertical: boolean
             isEOL: boolean
           }>
-        })(testDocument, 'special-demo')
+        }>)(testDocument, 'special-demo')
 
         expect(result.texts.map((text) => text.content)).toEqual([
           'First line',
@@ -882,12 +993,12 @@ describe('HtmlParser', () => {
           return originalGetComputedStyle(element)
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           texts: Array<{ content: string; polygon: number[][] }>
-        })(testDocument, 'percent-translate')
+        }>)(testDocument, 'percent-translate')
 
         expect(textNode.textContent).toBe('Translate percent')
         expect(result.texts).toHaveLength(1)
@@ -1023,12 +1134,12 @@ describe('HtmlParser', () => {
           return originalGetComputedStyle(element)
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           texts: Array<{ content: string; polygon: number[][] }>
-        })(testDocument, 'wrapped-latin')
+        }>)(testDocument, 'wrapped-latin')
 
         expect(result.texts.map((text) => text.content)).toEqual([
           'Hello world',
@@ -1171,12 +1282,12 @@ describe('HtmlParser', () => {
           return originalGetComputedStyle(element)
         }) as typeof defaultView.getComputedStyle
 
-        const result = (parserRef.collectTextsFromDocument as (
+        const result = await (parserRef.collectTextsFromDocument as (
           doc: Document,
           id: string
-        ) => {
+        ) => Promise<{
           texts: Array<{ content: string; polygon: number[][] }>
-        })(testDocument, 'wrapped-cjk')
+        }>)(testDocument, 'wrapped-cjk')
 
         expect(result.texts.map((text) => text.content)).toEqual([
           '你好世界',
@@ -1204,20 +1315,25 @@ describe('HtmlParser', () => {
     })
   })
 
-  it('encode does not call html2canvas before page thumbnail is requested', async () => {
+  it('encode only calls html2canvas for page-size measurement before page thumbnail is requested', async () => {
     await withDomDocument(async ({ document }) => {
       const restoreDocument = exposeGlobalDocument(document)
       const handle = installFakeHtml2Canvas()
       try {
         const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
         const doc = await HtmlParser.encode(buffer)
-        expect(handle.calls).toHaveLength(0)
-        expect(handle.loaderCallCount).toBe(0)
+        expect(handle.calls).toHaveLength(1)
+        expect(handle.loaderCallCount).toBe(1)
+        expect(handle.calls[0]?.options).toMatchObject({
+          scale: 1,
+          width: 1024,
+          windowWidth: 1024
+        })
         const intermediate = doc.getIntermediateDocument()
         const pages = await intermediate.pages
         const result = await pages[0].getThumbnail(0.3)
-        expect(handle.calls).toHaveLength(1)
-        expect(handle.loaderCallCount).toBe(1)
+        expect(handle.calls).toHaveLength(2)
+        expect(handle.loaderCallCount).toBe(2)
         expect(result).toMatchObject({ src: 'data:image/png;base64,FAKE' })
       } finally {
         handle.restore()
@@ -1240,8 +1356,8 @@ describe('HtmlParser', () => {
 
         expect(firstResult).toMatchObject({ src: 'data:image/png;base64,FAKE' })
         expect(secondResult).toMatchObject({ src: 'data:image/png;base64,FAKE' })
-        expect(handle.calls).toHaveLength(1)
-        expect(handle.calls[0]?.options).toEqual({
+        expect(handle.calls).toHaveLength(2)
+        expect(handle.calls[1]?.options).toEqual({
           backgroundColor: '#ffffff',
           scale: 0.3,
           useCORS: true
@@ -1263,7 +1379,7 @@ describe('HtmlParser', () => {
         const pages = await doc.getIntermediateDocument().pages
 
         await expect(pages[0].getThumbnail(0.3)).resolves.toBeUndefined()
-        expect(handle.calls).toHaveLength(1)
+        expect(handle.calls).toHaveLength(2)
       } finally {
         handle.restore()
         restoreDocument()
@@ -1285,9 +1401,79 @@ describe('HtmlParser', () => {
           pages[0].getThumbnail(0.3)
         ])
 
-        expect(handle.calls).toHaveLength(1)
+        expect(handle.calls.filter((call) => call.options?.scale === 0.3)).toHaveLength(1)
         expect(a).toEqual(b)
         expect(a).toMatchObject({ src: 'data:image/png;base64,FAKE' })
+      } finally {
+        handle.restore()
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode isolates lazy thumbnail captures for different snapshotWidth values', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const calls: Array<Record<string, unknown> | undefined> = []
+
+      setHtml2CanvasLoader(async () => async (_element, options) => {
+        calls.push(options)
+        const widthLabel = options?.width ?? 'default'
+        return {
+          toDataURL: () => `data:image/png;base64,WIDTH_${widthLabel}`
+        }
+      })
+
+      try {
+        const buffer = new TextEncoder().encode('<p>Hi</p>').buffer
+        const narrowDoc = await HtmlParser.encode(buffer, { snapshotWidth: 320 })
+        const wideDoc = await HtmlParser.encode(buffer, { snapshotWidth: 640 })
+        const narrowPage = (await narrowDoc.getIntermediateDocument().pages)[0]
+        const widePage = (await wideDoc.getIntermediateDocument().pages)[0]
+
+        const firstNarrow = await narrowPage.getThumbnail(0.3)
+        const secondNarrow = await narrowPage.getThumbnail(0.3)
+        const wide = await widePage.getThumbnail(0.3)
+
+        const measurementCalls = calls.filter((options) => options?.scale === 1)
+        const thumbnailCalls = calls.filter((options) => options?.scale === 0.3)
+        expect(measurementCalls).toHaveLength(2)
+        expect(thumbnailCalls).toHaveLength(2)
+        expect(measurementCalls.map((options) => options?.width)).toEqual([320, 640])
+        expect(thumbnailCalls.map((options) => options?.width)).toEqual([320, 640])
+        expect(thumbnailCalls.map((options) => options?.windowWidth)).toEqual([320, 640])
+        expect(firstNarrow).toEqual(secondNarrow)
+        expect(firstNarrow?.src).toBe('data:image/png;base64,WIDTH_320')
+        expect(wide?.src).toBe('data:image/png;base64,WIDTH_640')
+      } finally {
+        setHtml2CanvasLoader(null)
+        restoreDocument()
+      }
+    })
+  })
+
+  it('encode with snapshotWidth feeds decodeToHtml background output end to end', async () => {
+    await withDomDocument(async ({ document }) => {
+      const restoreDocument = exposeGlobalDocument(document)
+      const handle = installFakeHtml2Canvas({ dataUrl: 'data:image/png;base64,WIDTH640' })
+
+      try {
+        const buffer = new TextEncoder().encode('<p>Snapshot width output</p>').buffer
+        const doc = await HtmlParser.encode(buffer, { snapshotWidth: 640 })
+        const html = await HtmlParser.decodeToHtml(doc.getIntermediateDocument())
+
+        expect(html).toContain(
+          "background-image:url(&#39;data:image/png;base64,WIDTH640&#39;)"
+        )
+        expect(handle.calls).toHaveLength(2)
+        expect(handle.calls[1]?.options).toEqual({
+          backgroundColor: '#ffffff',
+          scale: 0.3,
+          useCORS: true,
+          width: 640,
+          windowWidth: 640
+        })
+        expect(handle.calls[1]?.element.style.width).toBe('640px')
       } finally {
         handle.restore()
         restoreDocument()
@@ -1307,12 +1493,12 @@ describe('HtmlParser', () => {
 
         const firstResult = await page.getThumbnail(0.3)
         expect(firstResult).toMatchObject({ src: 'data:image/png;base64,FAKE' })
-        expect(handle.calls).toHaveLength(1)
+        expect(handle.calls).toHaveLength(2)
 
         const secondResult = await page.getThumbnail(1)
         expect(secondResult).toMatchObject({ src: 'data:image/png;base64,FAKE' })
-        expect(handle.calls).toHaveLength(2)
-        expect(handle.calls[1]?.options?.scale).toBe(1)
+        expect(handle.calls).toHaveLength(3)
+        expect(handle.calls[2]?.options?.scale).toBe(1)
         expect((page as unknown as { _thumbnail?: { src: string } })._thumbnail).toEqual(secondResult)
       } finally {
         handle.restore()
@@ -1378,6 +1564,12 @@ describe('HtmlParser', () => {
         if (typeof scale !== 'number') {
           throw new Error('expected numeric html2canvas scale')
         }
+        if (scale === 1 && options?.width === 1024) {
+          resolve({
+            toDataURL: () => 'data:image/png;base64,MEASURE'
+          })
+          return
+        }
         pendings.push({ scale, resolve })
       }))
 
@@ -1415,6 +1607,511 @@ describe('HtmlParser', () => {
         setHtml2CanvasLoader(null)
         restoreDocument()
       }
+    })
+  })
+
+  describe('HtmlParser.encode Page canvas dimensions', () => {
+    it('uses snapshotWidth and scale-1 html2canvas height as CSS px Page size', async () => {
+      await withDomDocument(async ({ document }) => {
+        const restoreDocument = exposeGlobalDocument(document)
+        const handle = installFakeHtml2Canvas({
+          canvasWidth: 1200,
+          canvasHeight: 2400
+        })
+
+        try {
+          const html = '<main><p>Short text should not define Page height</p></main>'
+          const doc = await HtmlParser.encode(
+            new TextEncoder().encode(html).buffer,
+            { snapshotWidth: 1200 }
+          )
+          const pages = await doc.getIntermediateDocument().pages
+
+          expect(pages[0].width).toBe(1200)
+          expect(pages[0].height).toBe(2400)
+          expect(handle.loaderCallCount).toBe(1)
+          expect(handle.calls).toHaveLength(1)
+          expect(handle.calls[0]?.options).toMatchObject({
+            scale: 1,
+            width: 1200,
+            windowWidth: 1200
+          })
+        } finally {
+          handle.restore()
+          restoreDocument()
+        }
+      })
+    })
+
+    it('keeps exact fallback Page size when html2canvas size measurement rejects', async () => {
+      await withDomDocument(async ({ document }) => {
+        const restoreDocument = exposeGlobalDocument(document)
+        const handle = installFakeHtml2Canvas({
+          behavior: 'reject',
+          error: new Error('page size canvas failed'),
+          canvasWidth: 9999,
+          canvasHeight: 9999
+        })
+        const parserRef = HtmlParser as unknown as Record<string, unknown>
+        const originalCollectTexts = parserRef.collectTextsFromDocument
+
+        try {
+          parserRef.collectTextsFromDocument = async () => ({
+            title: 'Fallback Page Size',
+            texts: [],
+            images: [],
+            pageWidth: 640,
+            pageHeight: 360
+          })
+          const html = '<main><p>Fallback size survives canvas failure</p></main>'
+          const doc = await HtmlParser.encode(new TextEncoder().encode(html).buffer)
+          const pages = await doc.getIntermediateDocument().pages
+
+          expect(pages[0].width).toBe(640)
+          expect(pages[0].height).toBe(360)
+          expect(handle.loaderCallCount).toBe(1)
+          expect(handle.calls).toHaveLength(1)
+          expect(handle.calls[0]?.options).toMatchObject({
+            scale: 1,
+            width: 1024,
+            windowWidth: 1024
+          })
+        } finally {
+          parserRef.collectTextsFromDocument = originalCollectTexts
+          handle.restore()
+          restoreDocument()
+        }
+      })
+    })
+  })
+
+  describe('HtmlParser.encode excludeSelectors', () => {
+    const encodeHtml = (html: string, options?: Parameters<typeof HtmlParser.encode>[1]) =>
+      HtmlParser.encode(new TextEncoder().encode(html).buffer, options)
+
+    const readContent = async (doc: HtmlDocument) => {
+      const pages = await doc.getIntermediateDocument().pages
+      const content = await pages[0].getContent()
+      return { pages, content }
+    }
+
+    const readTextAndImages = async (doc: HtmlDocument) => {
+      const { pages, content } = await readContent(doc)
+      const texts = content.filter(
+        (item): item is IntermediateText => item instanceof IntermediateText
+      )
+      const images = content.filter(
+        (item): item is IntermediateImage => item instanceof IntermediateImage
+      )
+      return { pages, content, texts, images }
+    }
+
+    it('removes matching subtree text and images', async () => {
+      await withDomDocument(async () => {
+        const html = '<div class="keep">Keep me</div><div class="exclude"><p>Drop</p><img src="data:image/png;base64,iVBORw0KGgo=" /></div>'
+        const doc = await encodeHtml(html, { excludeSelectors: ['.exclude'] })
+        const { texts, images } = await readTextAndImages(doc)
+
+        expect(texts.map((text) => text.content)).toEqual(['Keep me'])
+        expect(texts.some((text) => text.content.includes('Drop'))).toBe(false)
+        expect(images).toHaveLength(0)
+      })
+    })
+
+    it('treats empty/undefined as no-op', async () => {
+      await withDomDocument(async () => {
+        const originalDateNow = Date.now
+        Date.now = () => 2026060702
+        const html = '<div class="keep">Keep me</div><div class="exclude"><p>Drop</p><img src="data:image/png;base64,iVBORw0KGgo=" /></div>'
+
+        try {
+          const baseline = await readContent(await encodeHtml(html))
+          const withEmptyObject = await readContent(await encodeHtml(html, {}))
+          const withEmptySelectors = await readContent(await encodeHtml(html, { excludeSelectors: [] }))
+          const summarize = ({ content }: Awaited<ReturnType<typeof readContent>>) =>
+            content.map((item) => ({
+              id: item.id,
+              kind: item instanceof IntermediateImage ? 'image' : 'text',
+              content: item instanceof IntermediateText ? item.content : undefined,
+              src: item instanceof IntermediateImage ? item.src : undefined
+            }))
+
+          expect(withEmptyObject.content).toHaveLength(baseline.content.length)
+          expect(withEmptySelectors.content).toHaveLength(baseline.content.length)
+          expect(summarize(withEmptyObject)).toEqual(summarize(baseline))
+          expect(summarize(withEmptySelectors)).toEqual(summarize(baseline))
+        } finally {
+          Date.now = originalDateNow
+        }
+      })
+    })
+
+    it('treats zero-match selectors as no-op', async () => {
+      await withDomDocument(async () => {
+        const originalDateNow = Date.now
+        Date.now = () => 2026060708
+        const html = '<main><p>Keep text</p><img src="data:image/png;base64,KEEP" /></main>'
+
+        try {
+          const baseline = await readTextAndImages(await encodeHtml(html))
+          const zeroMatch = await readTextAndImages(await encodeHtml(html, {
+            excludeSelectors: ['.does-not-exist']
+          }))
+
+          expect(zeroMatch.texts.map((text) => text.content)).toEqual(
+            baseline.texts.map((text) => text.content)
+          )
+          expect(zeroMatch.images.map((image) => image.src)).toEqual(
+            baseline.images.map((image) => image.src)
+          )
+          expect(zeroMatch.content).toHaveLength(baseline.content.length)
+        } finally {
+          Date.now = originalDateNow
+        }
+      })
+    })
+
+    it('excluding body yields empty content but valid document', async () => {
+      await withDomDocument(async () => {
+        const html = '<div class="keep">Keep me</div><p>Drop me too</p>'
+        const doc = await encodeHtml(html, { excludeSelectors: ['body'] })
+        const { pages, content } = await readContent(doc)
+
+        expect(pages.length).toBeGreaterThanOrEqual(1)
+        expect(pages[0].width).toBe(800)
+        expect(pages[0].height).toBeGreaterThan(0)
+        expect(content).toHaveLength(0)
+      })
+    })
+
+    it('rejects invalid selector with deterministic error', async () => {
+      await withDomDocument(async () => {
+        const html = '<div>Keep me</div>'
+        await expect(encodeHtml(html, { excludeSelectors: ['<<<bad'] })).rejects.toThrow(
+          /^Invalid exclude selector: <<<bad/
+        )
+      })
+    })
+
+    it('multiple selectors combine via OR', async () => {
+      await withDomDocument(async () => {
+        const html = '<div class="a">A</div><div class="b">B</div><div class="c">C</div>'
+        const doc = await encodeHtml(html, { excludeSelectors: ['.a', '.c'] })
+        const { texts } = await readTextAndImages(doc)
+
+        expect(texts.map((text) => text.content)).toEqual(['B'])
+      })
+    })
+
+    it('deduplicates behavior for overlapping selectors matching the same element', async () => {
+      await withDomDocument(async () => {
+        const html = [
+          '<section>',
+          '  <div class="a b"><p>Drop once</p><img src="data:image/png;base64,DROP" /></div>',
+          '  <p class="keep">Keep once</p>',
+          '</section>'
+        ].join('')
+        const doc = await encodeHtml(html, { excludeSelectors: ['.a', '.a.b'] })
+        const { texts, images } = await readTextAndImages(doc)
+
+        expect(texts.map((text) => text.content)).toEqual(['Keep once'])
+        expect(texts.some((text) => text.content.includes('Drop once'))).toBe(false)
+        expect(images).toHaveLength(0)
+      })
+    })
+  })
+
+  describe('HtmlParser.encode snapshotWidth', () => {
+    const encodeHtmlWith = (html: string, options: EncodeOptions) =>
+      HtmlParser.encode(new TextEncoder().encode(html).buffer, options)
+
+    describe('valid snapshotWidth values', () => {
+      const validValues = [100, 640, 10000]
+
+      validValues.forEach((width) => {
+        it(`accepts snapshotWidth=${width} and passes it to html2canvas`, async () => {
+          const handle = installFakeHtml2Canvas()
+          try {
+            await withDomDocument(async () => {
+              const html = '<div style="background-image:url(data:image/png;base64,AAAA)">Content</div>'
+              await encodeHtmlWith(html, { snapshotWidth: width })
+              expect(handle.calls.length).toBeGreaterThan(0)
+              expect(handle.calls[0].options?.width).toBe(width)
+            })
+          } finally {
+            handle.restore()
+          }
+        })
+      })
+    })
+
+    describe('omitted/undefined snapshotWidth', () => {
+      it('accepts undefined snapshotWidth with unchanged behavior', async () => {
+        const handle = installFakeHtml2Canvas()
+        try {
+          await withDomDocument(async () => {
+            const html = '<div style="background-image:url(data:image/png;base64,AAAA)">Content</div>'
+            await encodeHtmlWith(html, {})
+            await encodeHtmlWith(html, { snapshotWidth: undefined })
+            const measurementCalls = handle.calls.filter((call) => call.options?.scale === 1)
+            const thumbnailCalls = handle.calls.filter((call) => call.options?.scale === 0.3)
+            expect(measurementCalls.map((call) => call.options?.width)).toEqual([1024, 1024])
+            expect(thumbnailCalls[0]?.options?.width).toBeUndefined()
+          })
+        } finally {
+          handle.restore()
+        }
+      })
+    })
+
+    describe('invalid snapshotWidth values', () => {
+      const invalidCases = [
+        { value: 99, description: 'below minimum (99)' },
+        { value: 10001, description: 'above maximum (10001)' },
+        { value: 0, description: 'zero' },
+        { value: -1, description: 'negative' },
+        { value: NaN, description: 'NaN' },
+        { value: Infinity, description: 'Infinity' },
+        { value: 1.5, description: 'decimal' },
+      ]
+
+      invalidCases.forEach(({ value, description }) => {
+        it(`rejects snapshotWidth that is ${description}`, async () => {
+          await withDomDocument(async () => {
+            const html = '<div>Content</div>'
+            await expect(
+              encodeHtmlWith(html, { snapshotWidth: value })
+            ).rejects.toThrow(
+              expect.objectContaining({
+                message: expect.stringMatching(
+                  new RegExp(`Invalid snapshotWidth.*${String(value)}`)
+                )
+              })
+            )
+          })
+        })
+      })
+    })
+  })
+
+  describe('HtmlParser.encode mixed content order', () => {
+    type OrderedItem<T extends object> = T & { sourceOrder: number }
+    type CollectImagesForMixedTest = (
+      doc: Document,
+      id: string,
+      excludeMatcher?: (el: Element) => boolean
+    ) => Promise<IntermediateImage[]>
+    type CollectTextsForMixedTest = (
+      doc: Document,
+      id: string,
+      excludeMatcher?: (el: Element) => boolean
+    ) => Promise<{
+      title: string
+      texts: IntermediateText[]
+      images: IntermediateImage[]
+      pageWidth: number
+      pageHeight: number
+    }>
+    type ImageToDataUrlForMixedTest = (img: HTMLImageElement) => Promise<string>
+
+    const withSourceOrder = <T extends object>(item: T, sourceOrder: number): OrderedItem<T> =>
+      Object.assign(item, { sourceOrder })
+
+    const makeText = (id: string, content: string, sourceOrder: number): OrderedItem<IntermediateText> =>
+      withSourceOrder(new IntermediateText({
+        id,
+        content,
+        fontSize: 16,
+        fontFamily: 'Inter',
+        fontWeight: 400,
+        italic: false,
+        color: '#111111',
+        polygon: [[0, sourceOrder * 20], [80, sourceOrder * 20], [80, sourceOrder * 20 + 18], [0, sourceOrder * 20 + 18]],
+        lineHeight: 20,
+        ascent: 13,
+        descent: 5,
+        vertical: false,
+        dir: TextDir.LTR,
+        skew: 0,
+        isEOL: true
+      }), sourceOrder)
+
+    const makeImage = (id: string, src: string, sourceOrder: number): OrderedItem<IntermediateImage> =>
+      withSourceOrder(new IntermediateImage({
+        id,
+        src,
+        polygon: [[0, sourceOrder * 20], [32, sourceOrder * 20], [32, sourceOrder * 20 + 16], [0, sourceOrder * 20 + 16]],
+        opacity: 1
+      }), sourceOrder)
+
+    const readFirstPageContent = async (doc: HtmlDocument) => {
+      const pages = await doc.getIntermediateDocument().pages
+      const content = await pages[0].getContent()
+      return { page: pages[0], content }
+    }
+
+    const setRect = (element: Element, rect: DOMRect): void => {
+      element.getBoundingClientRect = (() => rect) as typeof element.getBoundingClientRect
+    }
+
+    it('emits text and images in DOM order', async () => {
+      await withDomDocument(async () => {
+        const parserRef = HtmlParser as unknown as {
+          collectTextsFromDocument: CollectTextsForMixedTest
+        }
+        const originalCollectTexts = parserRef.collectTextsFromDocument
+
+        parserRef.collectTextsFromDocument = async () => ({
+          title: 'Mixed DOM Order',
+          texts: [
+            makeText('mixed-text-0', 'Alpha', 0),
+            makeText('mixed-text-2', 'Beta', 2),
+            makeText('mixed-text-4', 'Gamma', 4)
+          ],
+          images: [
+            makeImage('mixed-image-1', 'data:image/png;base64,ONE', 1),
+            makeImage('mixed-image-3', 'data:image/png;base64,TWO', 3)
+          ],
+          pageWidth: 800,
+          pageHeight: 120
+        })
+
+        try {
+          const doc = await HtmlParser.encode(new TextEncoder().encode('<p>fixture</p>').buffer)
+          const { page, content } = await readFirstPageContent(doc)
+          const summary = content.map((item) => {
+            if (item instanceof IntermediateImage) {
+              return { kind: 'image', id: item.id, src: item.src }
+            }
+
+            return { kind: 'text', id: item.id, content: item.content }
+          })
+
+          expect(content).toHaveLength(5)
+          expect(summary).toEqual([
+            { kind: 'text', id: 'mixed-text-0', content: 'Alpha' },
+            { kind: 'image', id: 'mixed-image-1', src: 'data:image/png;base64,ONE' },
+            { kind: 'text', id: 'mixed-text-2', content: 'Beta' },
+            { kind: 'image', id: 'mixed-image-3', src: 'data:image/png;base64,TWO' },
+            { kind: 'text', id: 'mixed-text-4', content: 'Gamma' }
+          ])
+
+          const images = content.filter(
+            (item): item is IntermediateImage => item instanceof IntermediateImage
+          )
+          expect(images[0]).toMatchObject({
+            id: 'mixed-image-1',
+            src: 'data:image/png;base64,ONE',
+            polygon: [[0, 20], [32, 20], [32, 36], [0, 36]],
+            opacity: 1
+          })
+          expect(images[1]).toMatchObject({
+            id: 'mixed-image-3',
+            src: 'data:image/png;base64,TWO',
+            polygon: [[0, 60], [32, 60], [32, 76], [0, 76]],
+            opacity: 1
+          })
+          expect(IntermediatePage.serialize(page).content?.some((item) => 'sourceOrder' in item)).toBe(false)
+        } finally {
+          parserRef.collectTextsFromDocument = originalCollectTexts
+        }
+      })
+    })
+
+    it('preserves original src when canvas conversion fails', async () => {
+      await withDomDocument(async ({ document, DOMRect }) => {
+        const parserRef = HtmlParser as unknown as {
+          collectImagesFromDocument: CollectImagesForMixedTest
+          imageToDataUrl: ImageToDataUrlForMixedTest
+        }
+        const originalImageToDataUrl = parserRef.imageToDataUrl
+        const conversionAttempts: string[] = []
+
+        document.body.innerHTML = '<img id="fallback-image" src="/assets/fail.png" />'
+        setRect(document.body, new DOMRect(0, 0, 800, 600))
+        const img = document.querySelector('#fallback-image')
+        if (!img) throw new Error('expected fixture image')
+        setRect(img, new DOMRect(12, 34, 56, 78))
+        parserRef.imageToDataUrl = async (image) => {
+          conversionAttempts.push(image.getAttribute('src') ?? '')
+          throw new Error('canvas conversion failed')
+        }
+
+        try {
+          const images = await parserRef.collectImagesFromDocument(document, 'fallback-src')
+          expect(conversionAttempts).toEqual(['/assets/fail.png'])
+          expect(images).toHaveLength(1)
+          expect(images[0]).toMatchObject({
+            id: 'fallback-src-page-1-image-0',
+            src: '/assets/fail.png',
+            polygon: [[12, 34], [68, 34], [68, 112], [12, 112]],
+            opacity: 1
+          })
+        } finally {
+          parserRef.imageToDataUrl = originalImageToDataUrl
+        }
+      })
+    })
+
+    it('skips display:none and 0x0 images', async () => {
+      await withDomDocument(async ({ document, DOMRect }) => {
+        const parserRef = HtmlParser as unknown as {
+          collectImagesFromDocument: CollectImagesForMixedTest
+        }
+
+        document.body.innerHTML = [
+          '<img id="hidden-image" style="display:none" src="data:image/png;base64,HIDDEN" />',
+          '<img id="zero-image" src="data:image/png;base64,ZERO" />',
+          '<img id="visible-image" src="data:image/png;base64,VISIBLE" />'
+        ].join('')
+        setRect(document.body, new DOMRect(0, 0, 800, 600))
+
+        const hidden = document.querySelector('#hidden-image')
+        const zero = document.querySelector('#zero-image')
+        const visible = document.querySelector('#visible-image')
+        if (!hidden || !zero || !visible) throw new Error('expected fixture images')
+        setRect(hidden, new DOMRect(0, 0, 0, 0))
+        setRect(zero, new DOMRect(20, 20, 0, 0))
+        setRect(visible, new DOMRect(40, 50, 60, 70))
+
+        const images = await parserRef.collectImagesFromDocument(document, 'skip-images')
+        expect(images).toHaveLength(1)
+        expect(images[0]?.src).toBe('data:image/png;base64,VISIBLE')
+        expect(images[0]?.polygon).toEqual([[40, 50], [100, 50], [100, 120], [40, 120]])
+      })
+    })
+
+    it('keeps data url images unchanged', async () => {
+      await withDomDocument(async ({ document, DOMRect }) => {
+        const parserRef = HtmlParser as unknown as {
+          collectImagesFromDocument: CollectImagesForMixedTest
+          imageToDataUrl: ImageToDataUrlForMixedTest
+        }
+        const originalImageToDataUrl = parserRef.imageToDataUrl
+        const dataUrl = 'data:image/png;base64,UNCHANGED'
+
+        document.body.innerHTML = `<img id="data-image" src="${dataUrl}" />`
+        setRect(document.body, new DOMRect(0, 0, 800, 600))
+        const img = document.querySelector('#data-image')
+        if (!img) throw new Error('expected data image')
+        setRect(img, new DOMRect(5, 6, 7, 8))
+        parserRef.imageToDataUrl = async () => {
+          throw new Error('data url image should not be converted')
+        }
+
+        try {
+          const images = await parserRef.collectImagesFromDocument(document, 'data-url')
+          expect(images).toHaveLength(1)
+          expect(images[0]).toMatchObject({
+            id: 'data-url-page-1-image-0',
+            src: dataUrl,
+            polygon: [[5, 6], [12, 6], [12, 14], [5, 14]],
+            opacity: 1
+          })
+        } finally {
+          parserRef.imageToDataUrl = originalImageToDataUrl
+        }
+      })
     })
   })
 
@@ -1549,5 +2246,182 @@ describe('HtmlParser', () => {
         }
       })
     })
+  })
+})
+
+type Task1StyleProbeExpectation = {
+  cssName: string
+  prop: string
+  expected: string
+}
+
+const task1ReadStyleValue = (
+  style: CSSStyleDeclaration,
+  prop: string
+): string => {
+  const value = (style as unknown as Record<string, unknown>)[prop]
+  return typeof value === 'string' ? value : ''
+}
+
+const task1StyleProbeStyle = [
+  'background-color: rgb(1, 2, 3)',
+  'border-top: 1px solid rgb(10, 20, 30)',
+  'border-right: 2px dashed rgb(40, 50, 60)',
+  'border-bottom: 3px dotted rgb(70, 80, 90)',
+  'border-left: 4px double rgb(100, 110, 120)',
+  'border-radius: 5px 6px 7px 8px',
+  'box-shadow: 1px 2px 3px rgb(9, 8, 7)',
+  'outline: 9px solid rgb(11, 22, 33)'
+].join('; ')
+
+const task1StyleProbeExpectations: Task1StyleProbeExpectation[] = [
+  { cssName: 'background-color', prop: 'backgroundColor', expected: 'rgb(1, 2, 3)' },
+  { cssName: 'border-top-width', prop: 'borderTopWidth', expected: '1px' },
+  { cssName: 'border-top-style', prop: 'borderTopStyle', expected: 'solid' },
+  { cssName: 'border-top-color', prop: 'borderTopColor', expected: 'rgb(10, 20, 30)' },
+  { cssName: 'border-right-width', prop: 'borderRightWidth', expected: '2px' },
+  { cssName: 'border-right-style', prop: 'borderRightStyle', expected: 'dashed' },
+  { cssName: 'border-right-color', prop: 'borderRightColor', expected: 'rgb(40, 50, 60)' },
+  { cssName: 'border-bottom-width', prop: 'borderBottomWidth', expected: '3px' },
+  { cssName: 'border-bottom-style', prop: 'borderBottomStyle', expected: 'dotted' },
+  { cssName: 'border-bottom-color', prop: 'borderBottomColor', expected: 'rgb(70, 80, 90)' },
+  { cssName: 'border-left-width', prop: 'borderLeftWidth', expected: '4px' },
+  { cssName: 'border-left-style', prop: 'borderLeftStyle', expected: 'double' },
+  { cssName: 'border-left-color', prop: 'borderLeftColor', expected: 'rgb(100, 110, 120)' },
+  { cssName: 'border-top-left-radius', prop: 'borderTopLeftRadius', expected: '5px' },
+  { cssName: 'border-top-right-radius', prop: 'borderTopRightRadius', expected: '6px' },
+  { cssName: 'border-bottom-right-radius', prop: 'borderBottomRightRadius', expected: '7px' },
+  { cssName: 'border-bottom-left-radius', prop: 'borderBottomLeftRadius', expected: '8px' },
+  { cssName: 'border-radius', prop: 'borderRadius', expected: '5px 6px 7px 8px' },
+  { cssName: 'box-shadow', prop: 'boxShadow', expected: '1px 2px 3px rgb(9, 8, 7)' },
+  { cssName: 'outline-width', prop: 'outlineWidth', expected: '9px' },
+  { cssName: 'outline-style', prop: 'outlineStyle', expected: 'solid' },
+  { cssName: 'outline-color', prop: 'outlineColor', expected: 'rgb(11, 22, 33)' }
+]
+
+describe('Task 1 computed style whitelist assumption probe', () => {
+  it('documents happy-dom retrieval support for whitelisted inline styles', async () => {
+    await withDomDocument(async ({ document }) => {
+      const defaultView = document.defaultView
+      if (!defaultView) throw new Error('expected defaultView to exist in test document')
+
+      const el = document.createElement('div')
+      el.setAttribute('style', task1StyleProbeStyle)
+      document.body.appendChild(el)
+
+      // 探针：验证 happy-dom 能否读取背景样式白名单中的 computed style 与 inline style。
+      const computed = defaultView.getComputedStyle(el)
+      const observed = task1StyleProbeExpectations.map(({ cssName, prop, expected }) => {
+        const computedValue = task1ReadStyleValue(computed, prop)
+        const inlineValue = task1ReadStyleValue(el.style, prop)
+
+        return {
+          cssName,
+          computedReadable: computedValue === expected,
+          computedValue,
+          inlineReadable: inlineValue === expected,
+          inlineValue
+        }
+      })
+
+      expect(observed).toEqual(
+        task1StyleProbeExpectations.map(({ cssName, expected }) => ({
+          cssName,
+          computedReadable: true,
+          computedValue: expected,
+          inlineReadable: true,
+          inlineValue: expected
+        }))
+      )
+    })
+  })
+})
+
+type Task1Polygon = ReadonlyArray<Readonly<[number, number]>>
+
+const task1PolygonBounds = (polygon: Task1Polygon) => {
+  const xs = polygon.map(([x]) => x)
+  const ys = polygon.map(([, y]) => y)
+
+  return {
+    minX: Math.min(...xs),
+    minY: Math.min(...ys),
+    maxX: Math.max(...xs),
+    maxY: Math.max(...ys)
+  }
+}
+
+const task1FitsPage = (
+  polygon: Task1Polygon,
+  page: { width: number; height: number }
+): boolean => {
+  const bounds = task1PolygonBounds(polygon)
+  return (
+    bounds.minX >= 0 &&
+    bounds.minY >= 0 &&
+    bounds.maxX <= page.width &&
+    bounds.maxY <= page.height
+  )
+}
+
+describe('Task 1 polygon coordinate alignment assumption probe', () => {
+  it('documents IntermediateImage and IntermediateText sharing page coordinates', () => {
+    const page = { width: 800, height: 1024 }
+    const imagePolygon = [
+      [10, 20],
+      [110, 20],
+      [110, 80],
+      [10, 80]
+    ] satisfies IntermediateImage['polygon']
+    const textPolygon = [
+      [120, 30],
+      [220, 30],
+      [220, 70],
+      [120, 70]
+    ] satisfies IntermediateText['polygon']
+
+    const image = new IntermediateImage({
+      id: 'task-1-image',
+      src: 'data:image/png;base64,TASK1',
+      polygon: imagePolygon,
+      opacity: 1
+    })
+    const text = new IntermediateText({
+      id: 'task-1-text',
+      content: 'Task 1 text',
+      fontSize: 16,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      italic: false,
+      color: '#111111',
+      polygon: textPolygon,
+      lineHeight: 20,
+      ascent: 12,
+      descent: 4,
+      vertical: false,
+      dir: TextDir.LTR,
+      skew: 0,
+      isEOL: true
+    })
+
+    // 探针：图片和文字 polygon 都以页面左上角为原点，并落在同一页尺寸内。
+    expect(task1PolygonBounds(image.polygon)).toEqual({
+      minX: 10,
+      minY: 20,
+      maxX: 110,
+      maxY: 80
+    })
+    expect(task1PolygonBounds(text.polygon)).toEqual({
+      minX: 120,
+      minY: 30,
+      maxX: 220,
+      maxY: 70
+    })
+    expect(task1FitsPage(image.polygon, page)).toBe(true)
+    expect(task1FitsPage(text.polygon, page)).toBe(true)
+    expect(computeTargetWidth(image.polygon)).toBe(100)
+    expect(computeTargetHeight(image.polygon)).toBe(60)
+    expect(computeTargetWidth(text.polygon)).toBe(100)
+    expect(computeTargetHeight(text.polygon)).toBe(40)
   })
 })

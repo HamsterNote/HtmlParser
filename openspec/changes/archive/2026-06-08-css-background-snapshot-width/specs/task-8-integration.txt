@@ -1,0 +1,57 @@
+Task 8 integration regression evidence
+Date: 2026-06-08
+
+Changed tests:
+- `src/__tests__/htmlParser.test.ts`
+  - Added `encode isolates lazy thumbnail captures for different snapshotWidth values`.
+  - Added `encode with snapshotWidth feeds decodeToHtml background output end to end`.
+- `src/__tests__/renderer.test.ts`
+  - Added `threads broad CSS through encoded background thumbnail capture`.
+- `e2e/test_encode_snapshot_width.py`
+  - Fixed invalid-number E2E test to override the number input value getter because Chromium/Playwright cannot type non-numeric text into `input[type=number]`.
+
+Coverage proven:
+- Broad CSS styles appear in the background thumbnail capture path via `.hamster-note-visual-container` assertions for background-color, opacity, padding, overflow, text-shadow, color, font-size, font-weight, display, geometry, and omitted foreground text.
+- `snapshotWidth` affects layout/html2canvas options consistently: `width` and `windowWidth` are asserted as `640`, and the captured offscreen wrapper width is asserted as `640px`.
+- Cache key includes width / stale thumbnail prevention: separate `snapshotWidth` values `320` and `640` produce two html2canvas calls and distinct thumbnail data URLs, while repeated same-width calls reuse the cached result.
+- Omitted width preserves old behavior via existing lazy thumbnail test asserting html2canvas options stay `{ backgroundColor, scale, useCORS }` with no width/windowWidth.
+- Demo flow succeeds through E2E `test_parse_with_snapshot_width_input_populated`, empty-width backward compatibility, and invalid-width failure status.
+
+Diagnostics:
+- `lsp_diagnostics src/__tests__/renderer.test.ts`: No diagnostics found.
+- `lsp_diagnostics src/__tests__/htmlParser.test.ts`: one existing Biome warning at line 1736 for `options as any` in the pre-existing snapshotWidth validation helper; no TypeScript errors.
+- `lsp_diagnostics e2e/test_encode_snapshot_width.py`: Python LSP unavailable (`basedpyright-langserver` not installed), so syntax was checked with `python3 -m py_compile e2e/test_encode_snapshot_width.py`.
+- `python3 -m py_compile e2e/test_encode_snapshot_width.py`: exit 0.
+
+Targeted integration command:
+NODE_OPTIONS='--experimental-vm-modules' npm test -- src/__tests__/htmlParser.test.ts src/__tests__/renderer.test.ts --runInBand
+
+Targeted result:
+- Test Suites: 2 passed, 2 total
+- Tests: 99 passed, 99 total
+- Snapshots: 0 total
+- Time: 6.361 s
+- Full log: `/home/zhangxiao/.local/share/opencode/tool-output/tool_ea6d0c068001wLfgE9lRxc5vsR`
+
+Full unit command:
+npm test
+
+Full unit result:
+- Test Suites: 15 passed, 15 total
+- Tests: 200 passed, 200 total
+- Snapshots: 0 total
+- Time: 10 s
+- Full log: `/home/zhangxiao/.local/share/opencode/tool-output/tool_ea6d1336f001wiagE1eyeMfYny`
+
+E2E command:
+npm run test:e2e
+
+E2E final result:
+- `yarn build:all` succeeded with rolldown in 1.63 s.
+- Pytest E2E: 17 passed in 32.64 s.
+- Demo server started on port 8169 and stopped cleanly.
+
+Initial E2E failure and fix:
+- First E2E run had 16 passed / 1 failed because Playwright cannot `fill("not-a-number")` into `input[type=number]`.
+- Fixed test-only by overriding the input value getter in `e2e/test_encode_snapshot_width.py` so the demo validation branch still receives `not-a-number`.
+- Re-run passed all 17 E2E tests.

@@ -1,0 +1,111 @@
+
+> @hamster-note/html-parser@0.7.0 test
+> NODE_OPTIONS='--experimental-vm-modules' jest --runInBand src/__tests__/htmlParser.test.ts --testNamePattern=skips display:none and 0x0 images
+
+  console.log
+    [HtmlParser] [collectImagesFromDocument] 图片收集完成 { count: 1 }
+
+      at log (src/devLog.ts:7:11)
+
+(node:1519155) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS src/__tests__/htmlParser.test.ts
+  HtmlParser
+    ○ skipped encode 应该在无 DOM 环境下抛出错误
+    ○ skipped encode 应该识别斜体文本
+    ○ skipped encode DOM 路径中同一语义行仅最后片段 isEOL 为 true
+    ○ skipped encode DOM 路径在块边界和 <br> 处结束语义行且每行仅一个 isEOL
+    ○ skipped encode DOM 路径在多行输入中合并文本节点且最后片段 isEOL 为 true
+    ○ skipped encode fallback 路径应该使用 pretext 宽度生成 polygon
+    ○ skipped encode 应该在 pretext 测量失败时回退到启发式宽度
+    ○ skipped encode 应该使用 pretext 测量文本宽度并生成 polygon
+    ○ skipped encode 应该在成功编码后清理 iframe
+    ○ skipped encode 应该在测量失败时清理 iframe
+    ○ skipped encode 应该在 collectTextsFromDocument 抛出错误时清理 iframe
+    ○ skipped encode 应该通过 iframe DOM 解析嵌套样式 HTML
+    ○ skipped decodeToHtml 后再 encode 应该保留带引号的 font-family
+    ○ skipped encode 应该正确解析引号内包含分号和冒号的 font-family
+    ○ skipped collectTextsFromDocument 应该基于 computed style 和 bounding rect 生成中间文本
+    ○ skipped collectTextsFromDocument 不应被长内容撑大的 scrollWidth 放大页面宽度
+    ○ skipped collectTextsFromDocument 应该支持特殊 demo 文本场景
+    ○ skipped collectTextsFromDocument 应该支持百分比 translate
+    ○ skipped collectTextsFromDocument 应该按渲染行切分包裹的拉丁文本
+    ○ skipped collectTextsFromDocument 应该按渲染行切分无空格文本
+    ○ skipped encode does not call html2canvas before page thumbnail is requested
+    ○ skipped encode lazily generates page thumbnail on first getThumbnail call
+    ○ skipped encode resolves undefined when html2canvas thumbnail capture fails
+    ○ skipped encode deduplicates concurrent thumbnail requests at the same scale
+    ○ skipped encode recaptures page thumbnail when a larger scale is requested
+    ○ skipped encode keeps lazyRenderPageDiv background image working through the lazy thumbnail path
+    ○ skipped encode preserves IntermediatePage.serialize thumbnail after lazy capture mutates the private field
+    ○ skipped encode does not downgrade cached thumbnail when a smaller-scale capture finishes after a larger one
+    HtmlParser.encode excludeSelectors
+      ○ skipped removes matching subtree text and images
+      ○ skipped treats empty/undefined as no-op
+      ○ skipped excluding body yields empty content but valid document
+      ○ skipped rejects invalid selector with deterministic error
+      ○ skipped multiple selectors combine via OR
+    HtmlParser.encode mixed content order
+      ✓ skips display:none and 0x0 images (56 ms)
+      ○ skipped emits text and images in DOM order
+      ○ skipped preserves original src when canvas conversion fails
+      ○ skipped keeps data url images unchanged
+    HtmlDocument.getCover
+      ○ skipped getCover 返回对象 src 时应解析为 HTMLImageElement
+      ○ skipped getCover 返回 undefined 时应回退为 HTMLCanvasElement
+      ○ skipped getCover 返回空 src 时应回退为 HTMLCanvasElement
+  Task 1 computed style whitelist assumption probe
+    ○ skipped documents happy-dom retrieval support for whitelisted inline styles
+  Task 1 polygon coordinate alignment assumption probe
+    ○ skipped documents IntermediateImage and IntermediateText sharing page coordinates
+
+----------------------------|---------|----------|---------|---------|-----------------------------------------------------------------------------------
+File                        | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                                 
+----------------------------|---------|----------|---------|---------|-----------------------------------------------------------------------------------
+All files                   |    9.38 |     2.82 |     4.1 |    9.79 |                                                                                   
+ src                        |     7.1 |     3.74 |    4.61 |    7.24 |                                                                                   
+  HtmlDocument.ts           |       0 |        0 |       0 |       0 | 9-104                                                                             
+  HtmlPage.ts               |    6.97 |     12.5 |    12.5 |    6.97 | 21-115                                                                            
+  decodeTextControl.ts      |       4 |        0 |       0 |       4 | 63-121                                                                            
+  devLog.ts                 |   22.22 |    22.22 |   33.33 |   22.22 | 3,11-25                                                                           
+  htmlParserWorkerClient.ts |    2.77 |        0 |       0 |    3.22 | 26-102                                                                            
+  htmlParserWorkerCore.ts   |       0 |        0 |       0 |       0 | 55-210                                                                            
+  index.ts                  |    6.58 |     4.28 |    5.08 |     6.5 | 67-105,112,116-425,431-505,569-574,606-958,970-1329,1373-1380,1406-1967,1989-2143 
+  intermediateTextGuard.ts  |       0 |        0 |       0 |       0 | 16-34                                                                             
+  pageThumbnailDom.ts       |       0 |        0 |       0 |       0 | 27-109                                                                            
+  textCssStyle.ts           |   27.27 |        0 |       0 |   31.57 | 11-13,17-18,22-23,30-51,57,62                                                     
+  textGeometry.ts           |   10.52 |        0 |       0 |   10.52 | 12-24,28-40,44-56,60-72                                                           
+  textMeasurement.ts        |   22.22 |        0 |   16.66 |   22.22 | 30-48,55,71-75,84-103                                                             
+  textStyle.ts              |   11.86 |        0 |       0 |   12.96 | 37-41,47-60,67-68,79-94,98-170                                                    
+ src/mock                   |   41.66 |        0 |       0 |   41.66 |                                                                                   
+  constants.ts              |     100 |      100 |     100 |     100 |                                                                                   
+  errors.ts                 |    12.5 |        0 |       0 |    12.5 | 7-8,13-21                                                                         
+ src/mock/api               |   17.14 |        0 |       0 |   17.64 |                                                                                   
+  coverageReportApi.ts      |      20 |      100 |       0 |      20 | 9-13                                                                              
+  mockConfigApi.ts          |   19.04 |        0 |       0 |      20 | 24-28,40-44,51-71                                                                 
+  mockDatasetApi.ts         |   11.11 |        0 |       0 |   11.11 | 14-24                                                                             
+ src/mock/generation        |   11.02 |        0 |       0 |      12 |                                                                                   
+  datasetBuilder.ts         |    8.33 |        0 |       0 |    9.37 | 11-14,23,35-74                                                                    
+  determinism.ts            |   11.76 |        0 |       0 |    12.5 | 11,17-39                                                                          
+  fieldValueGenerator.ts    |   13.11 |        0 |       0 |   14.03 | 8-13,19-21,27-29,36-63,71-92,97-117                                               
+  prng.ts                   |    9.09 |        0 |       0 |      10 | 2-7,17-34                                                                         
+ src/mock/services          |   17.02 |        0 |       0 |   17.77 |                                                                                   
+  coverageReportService.ts  |   13.33 |        0 |       0 |   13.33 | 13-31,42-67                                                                       
+  mockConfigService.ts      |      20 |        0 |       0 |   21.05 | 17-29,35-39,45-50                                                                 
+  mockDatasetService.ts     |   16.66 |        0 |       0 |   18.18 | 18-31                                                                             
+ src/mock/store             |   57.14 |      100 |      20 |   57.14 |                                                                                   
+  mockStores.ts             |   57.14 |      100 |      20 |   57.14 | 13-16,26-28                                                                       
+ src/mock/validators        |   11.39 |        0 |       0 |   12.85 |                                                                                   
+  configValidator.ts        |   12.96 |        0 |       0 |   14.28 | 15-40,44-45,51,60,66-87,94-119,124                                                
+  constraintValidator.ts    |       8 |        0 |       0 |    9.52 | 4-7,13-62                                                                         
+ src/mock/versioning        |   17.64 |        0 |       0 |   18.75 |                                                                                   
+  configVersioning.ts       |   17.64 |        0 |       0 |   18.75 | 4-9,13-20,24-30                                                                   
+ src/testUtils              |   21.62 |        0 |    9.09 |   21.62 |                                                                                   
+  domTestUtils.ts           |    42.1 |        0 |   33.33 |    42.1 | 7-11,33-43                                                                        
+  html2canvasTestUtils.ts   |       0 |        0 |       0 |       0 | 31-64                                                                             
+----------------------------|---------|----------|---------|---------|-----------------------------------------------------------------------------------
+Test Suites: 1 passed, 1 total
+Tests:       41 skipped, 1 passed, 42 total
+Snapshots:   0 total
+Time:        2.095 s
+Ran all test suites matching src/__tests__/htmlParser.test.ts with tests matching "skips display:none and 0x0 images".

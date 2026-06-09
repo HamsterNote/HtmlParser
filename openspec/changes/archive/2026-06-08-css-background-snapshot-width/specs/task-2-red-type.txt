@@ -1,0 +1,2 @@
+src/__tests__/typeExports.test.ts(17,38): error TS2353: Object literal may only specify known properties, and 'snapshotWidth' does not exist in type 'EncodeOptions'.
+src/__tests__/typeExports.test.ts(18,20): error TS2339: Property 'snapshotWidth' does not exist on type 'EncodeOptions'.

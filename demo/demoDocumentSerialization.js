@@ -1,4 +1,25 @@
-import { IntermediatePage, IntermediateText, normalizeDecodeTextControl } from '../dist/index.js'
+import { IntermediateImage, IntermediatePage, IntermediateText, normalizeDecodeTextControl } from '../dist/index.js'
+
+const DEFAULT_THUMBNAIL_QUALITY = 0.3
+
+// duck-typing 鉴别函数（与 src/intermediateTextGuard.ts 逻辑一致）
+function isIntermediateTextLike(value) {
+  return (
+    typeof value === 'object' && value !== null &&
+    typeof value.content === 'string' &&
+    Array.isArray(value.polygon) &&
+    typeof value.fontSize === 'number'
+  )
+}
+
+function isIntermediateImageLike(value) {
+  return (
+    typeof value === 'object' && value !== null &&
+    typeof value.src === 'string' &&
+    Array.isArray(value.polygon) &&
+    typeof value.opacity === 'number'
+  )
+}
 
 function cloneOutlineItem(item) {
   return {
@@ -12,18 +33,47 @@ function cloneText(text) {
   })
 }
 
+function cloneImage(image) {
+  return new IntermediateImage({
+    ...image
+  })
+}
+
+// 按 DOM 顺序克隆 content 数组项，使用 duck-typing 鉴别 text/image
+function cloneContentItem(item) {
+  if (isIntermediateImageLike(item)) {
+    return cloneImage(item)
+  }
+  return cloneText(item)
+}
+
 function clonePage(page) {
+  // 优先保留 content 数组（DOM 顺序），同时保留 texts/images 供旧版读取
+  const content = Array.isArray(page.content)
+    ? page.content.map(cloneContentItem)
+    : undefined
   return {
     id: page.id,
     number: page.number,
     width: page.width,
     height: page.height,
-    texts: page.texts.map(cloneText),
+    texts: (page.texts ?? []).map(cloneText),
+    images: (page.images ?? []).map(cloneImage),
+    // 向后兼容：content 字段保留 text+image 混排 DOM 顺序
+    ...(content ? { content } : {}),
     thumbnail: page.thumbnail ?? undefined
   }
 }
 
-async function resolvePages(intermediate) {
+function resolveThumbnailQuality(options) {
+  const thumbnailQuality = options?.thumbnailQuality
+  return Number.isFinite(thumbnailQuality) && thumbnailQuality > 0
+    ? thumbnailQuality
+    : DEFAULT_THUMBNAIL_QUALITY
+}
+
+async function resolvePages(intermediate, options = {}) {
+  const thumbnailQuality = resolveThumbnailQuality(options)
   const pages = await intermediate.pages
   return Promise.all(
     pages.map(async (page) => {
@@ -37,14 +87,18 @@ async function resolvePages(intermediate) {
         Array.isArray(page.texts)
           ? page.texts
           : Array.isArray(content)
-            ? content.filter((item) => item instanceof IntermediateText)
+            ? content.filter((item) => isIntermediateTextLike(item))
             : typeof page.getTexts === 'function'
               ? await page.getTexts()
               : []
+      const images =
+        Array.isArray(content)
+          ? content.filter((item) => isIntermediateImageLike(item))
+          : []
 
       let thumbnail = page.thumbnail
       if (thumbnail == null && typeof page.getThumbnail === 'function') {
-        thumbnail = await page.getThumbnail(0.3)
+        thumbnail = await page.getThumbnail(thumbnailQuality)
       }
 
       return clonePage({
@@ -52,14 +106,16 @@ async function resolvePages(intermediate) {
         number: page.number,
         width: page.width,
         height: page.height,
+        content,
         texts,
+        images,
         thumbnail
       })
     })
   )
 }
 
-export async function serializeIntermediate(intermediate) {
+export async function serializeIntermediate(intermediate, options = {}) {
   const outline =
     typeof intermediate.getOutline === 'function'
       ? (intermediate.getOutline() ?? [])
@@ -69,7 +125,7 @@ export async function serializeIntermediate(intermediate) {
     id: intermediate.id,
     title: intermediate.title,
     outline: outline.map(cloneOutlineItem),
-    pages: await resolvePages(intermediate)
+    pages: await resolvePages(intermediate, options)
   }
 }
 
@@ -80,19 +136,24 @@ export function parseSerializedDocument(serialized) {
   const pages = Array.isArray(serialized.pages)
     ? serialized.pages.map((page) => {
         const normalizedPage = clonePage(page)
-        const content = normalizedPage.texts.map(cloneText)
+        const texts = normalizedPage.texts.map(cloneText)
+        const images = normalizedPage.images.map(cloneImage)
+        // 优先使用 content 数组保持 DOM 顺序；否则回退 [...texts, ...images]
+        const content = Array.isArray(normalizedPage.content)
+          ? normalizedPage.content.map(cloneContentItem)
+          : [...texts, ...images]
         const intermediatePage = new IntermediatePage({
           id: normalizedPage.id,
           number: normalizedPage.number,
           width: normalizedPage.width,
           height: normalizedPage.height,
-          texts: content,
+          content,
           thumbnail: undefined
         })
-        intermediatePage.setGetContent(async () => content.map(cloneText))
+        intermediatePage.setGetContent(async () => content.map(item =>
+          isIntermediateImageLike(item) ? cloneImage(item) : cloneText(item)
+        ))
         intermediatePage.setGetThumbnail(async () => normalizedPage.thumbnail)
-        intermediatePage.texts = normalizedPage.texts
-        intermediatePage.thumbnail = normalizedPage.thumbnail
         return intermediatePage
       })
     : []

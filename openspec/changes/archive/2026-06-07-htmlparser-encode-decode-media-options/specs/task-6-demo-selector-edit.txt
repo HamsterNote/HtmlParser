@@ -1,0 +1,1784 @@
+{
+  "id": "html-1780811723019",
+  "title": "HtmlParser Demo - Encode",
+  "outline": [],
+  "pages": [
+    {
+      "id": "html-1780811723019-page-1",
+      "number": 1,
+      "width": 800,
+      "height": 722,
+      "texts": [
+        {
+          "id": "html-1780811723019-page-1-text-0",
+          "content": "Encode Demo",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              0
+            ],
+            [
+              106,
+              0
+            ],
+            [
+              106,
+              19
+            ],
+            [
+              0,
+              19
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-1",
+          "content": "Sample content",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              19
+            ],
+            [
+              134,
+              19
+            ],
+            [
+              134,
+              38
+            ],
+            [
+              0,
+              38
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-2",
+          "content": "This page contains mixed content:",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              38
+            ],
+            [
+              317,
+              38
+            ],
+            [
+              317,
+              57
+            ],
+            [
+              0,
+              57
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-3",
+          "content": "bold text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              317,
+              38
+            ],
+            [
+              403,
+              38
+            ],
+            [
+              403,
+              57
+            ],
+            [
+              317,
+              57
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-4",
+          "content": ",",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              403,
+              38
+            ],
+            [
+              413,
+              38
+            ],
+            [
+              413,
+              57
+            ],
+            [
+              403,
+              57
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-5",
+          "content": "italic text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": true,
+          "color": "#000",
+          "polygon": [
+            [
+              413,
+              38
+            ],
+            [
+              519,
+              38
+            ],
+            [
+              519,
+              57
+            ],
+            [
+              413,
+              57
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-6",
+          "content": ", and",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              519,
+              38
+            ],
+            [
+              567,
+              38
+            ],
+            [
+              567,
+              57
+            ],
+            [
+              519,
+              57
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-7",
+          "content": "colored text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#e11d48",
+          "polygon": [
+            [
+              567,
+              38
+            ],
+            [
+              682,
+              38
+            ],
+            [
+              682,
+              57
+            ],
+            [
+              567,
+              57
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-8",
+          "content": ".",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              682,
+              38
+            ],
+            [
+              692,
+              38
+            ],
+            [
+              692,
+              57
+            ],
+            [
+              682,
+              57
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-9",
+          "content": "HtmlParser will walk the DOM, collect text nodes, and estimate a simple layout for each line.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              57
+            ],
+            [
+              893,
+              57
+            ],
+            [
+              893,
+              76
+            ],
+            [
+              0,
+              76
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-10",
+          "content": "Styled background sample text appears before the inline image so mixed content order can be inspected.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              76
+            ],
+            [
+              979,
+              76
+            ],
+            [
+              979,
+              95
+            ],
+            [
+              0,
+              95
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-11",
+          "content": "More styled sample text follows the image.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              979,
+              76
+            ],
+            [
+              1382,
+              76
+            ],
+            [
+              1382,
+              95
+            ],
+            [
+              979,
+              95
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-12",
+          "content": "Special text cases",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              95
+            ],
+            [
+              173,
+              95
+            ],
+            [
+              173,
+              114
+            ],
+            [
+              0,
+              114
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-13",
+          "content": "<br>",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              114
+            ],
+            [
+              38,
+              114
+            ],
+            [
+              38,
+              133
+            ],
+            [
+              0,
+              133
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-14",
+          "content": "First line",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              133
+            ],
+            [
+              96,
+              133
+            ],
+            [
+              96,
+              152
+            ],
+            [
+              0,
+              152
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-15",
+          "content": "Second line",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              152
+            ],
+            [
+              106,
+              152
+            ],
+            [
+              106,
+              171
+            ],
+            [
+              0,
+              171
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-16",
+          "content": "Rotated text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              171
+            ],
+            [
+              115,
+              171
+            ],
+            [
+              115,
+              190
+            ],
+            [
+              0,
+              190
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-17",
+          "content": "Rotate me",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              190
+            ],
+            [
+              86,
+              190
+            ],
+            [
+              86,
+              209
+            ],
+            [
+              0,
+              209
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-18",
+          "content": "Scaled text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              209
+            ],
+            [
+              106,
+              209
+            ],
+            [
+              106,
+              228
+            ],
+            [
+              0,
+              228
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-19",
+          "content": "Scale me",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              228
+            ],
+            [
+              77,
+              228
+            ],
+            [
+              77,
+              247
+            ],
+            [
+              0,
+              247
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-20",
+          "content": "Transform translate",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              247
+            ],
+            [
+              182,
+              247
+            ],
+            [
+              182,
+              266
+            ],
+            [
+              0,
+              266
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-21",
+          "content": "Translate me",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              266
+            ],
+            [
+              115,
+              266
+            ],
+            [
+              115,
+              285
+            ],
+            [
+              0,
+              285
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-22",
+          "content": "Shadow text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              285
+            ],
+            [
+              106,
+              285
+            ],
+            [
+              106,
+              304
+            ],
+            [
+              0,
+              304
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-23",
+          "content": "Shadow me",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              304
+            ],
+            [
+              86,
+              304
+            ],
+            [
+              86,
+              323
+            ],
+            [
+              0,
+              323
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-24",
+          "content": "Native vertical",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              323
+            ],
+            [
+              144,
+              323
+            ],
+            [
+              144,
+              342
+            ],
+            [
+              0,
+              342
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-25",
+          "content": "原生竖排文字",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              342
+            ],
+            [
+              58,
+              342
+            ],
+            [
+              58,
+              361
+            ],
+            [
+              0,
+              361
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-26",
+          "content": "JSON Input",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              361
+            ],
+            [
+              96,
+              361
+            ],
+            [
+              96,
+              380
+            ],
+            [
+              0,
+              380
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-27",
+          "content": "Paste intermediate document JSON here and click \"Decode JSON Input\" to render preview.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              380
+            ],
+            [
+              826,
+              380
+            ],
+            [
+              826,
+              399
+            ],
+            [
+              0,
+              399
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-28",
+          "content": "Encode exclude selectors",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              399
+            ],
+            [
+              230,
+              399
+            ],
+            [
+              230,
+              418
+            ],
+            [
+              0,
+              418
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-29",
+          "content": "JSON array syntax only. The default excludes page chrome and demo controls, leaving only",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              418
+            ],
+            [
+              845,
+              418
+            ],
+            [
+              845,
+              437
+            ],
+            [
+              0,
+              437
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-30",
+          "content": "#sample-content",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              845,
+              418
+            ],
+            [
+              989,
+              418
+            ],
+            [
+              989,
+              437
+            ],
+            [
+              845,
+              437
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-31",
+          "content": "in the encoded output.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              989,
+              418
+            ],
+            [
+              1200,
+              418
+            ],
+            [
+              1200,
+              437
+            ],
+            [
+              989,
+              437
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-32",
+          "content": "Text Control",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              437
+            ],
+            [
+              115,
+              437
+            ],
+            [
+              115,
+              456
+            ],
+            [
+              0,
+              456
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-33",
+          "content": "(optional)",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              115,
+              437
+            ],
+            [
+              211,
+              437
+            ],
+            [
+              211,
+              456
+            ],
+            [
+              115,
+              456
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-34",
+          "content": "Override text styles at decode time. Supported fields: fontSize, lineHeight, fontWeight, italic, color, fontFamily, vertical, dir.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              456
+            ],
+            [
+              1248,
+              456
+            ],
+            [
+              1248,
+              475
+            ],
+            [
+              0,
+              475
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-35",
+          "content": "Background Options",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              475
+            ],
+            [
+              173,
+              475
+            ],
+            [
+              173,
+              494
+            ],
+            [
+              0,
+              494
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-36",
+          "content": "(optional)",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              173,
+              475
+            ],
+            [
+              269,
+              475
+            ],
+            [
+              269,
+              494
+            ],
+            [
+              173,
+              494
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-37",
+          "content": "Control background image generation in the decoded output.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              494
+            ],
+            [
+              557,
+              494
+            ],
+            [
+              557,
+              513
+            ],
+            [
+              0,
+              513
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-38",
+          "content": "Include background image",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              513
+            ],
+            [
+              230,
+              513
+            ],
+            [
+              230,
+              532
+            ],
+            [
+              0,
+              532
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-39",
+          "content": "Background quality:",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              532
+            ],
+            [
+              182,
+              532
+            ],
+            [
+              182,
+              551
+            ],
+            [
+              0,
+              551
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-40",
+          "content": "0.3",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              182,
+              532
+            ],
+            [
+              211,
+              532
+            ],
+            [
+              211,
+              551
+            ],
+            [
+              182,
+              551
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-41",
+          "content": "Exclude text from background image",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              551
+            ],
+            [
+              326,
+              551
+            ],
+            [
+              326,
+              570
+            ],
+            [
+              0,
+              570
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-42",
+          "content": "Decode JSON Input",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              570
+            ],
+            [
+              163,
+              570
+            ],
+            [
+              163,
+              589
+            ],
+            [
+              0,
+              589
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-43",
+          "content": "Parsing...",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              163,
+              570
+            ],
+            [
+              259,
+              570
+            ],
+            [
+              259,
+              589
+            ],
+            [
+              163,
+              589
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-44",
+          "content": "Parse current page",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              589
+            ],
+            [
+              173,
+              589
+            ],
+            [
+              173,
+              608
+            ],
+            [
+              0,
+              608
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811723019-page-1-text-45",
+          "content": "Decode JSON",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              173,
+              589
+            ],
+            [
+              279,
+              589
+            ],
+            [
+              279,
+              608
+            ],
+            [
+              173,
+              608
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-46",
+          "content": "JSON Output",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              608
+            ],
+            [
+              106,
+              608
+            ],
+            [
+              106,
+              627
+            ],
+            [
+              0,
+              627
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-47",
+          "content": "Collapse",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              627
+            ],
+            [
+              77,
+              627
+            ],
+            [
+              77,
+              646
+            ],
+            [
+              0,
+              646
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-48",
+          "content": "Working...",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              646
+            ],
+            [
+              96,
+              646
+            ],
+            [
+              96,
+              665
+            ],
+            [
+              0,
+              665
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-49",
+          "content": "HTML Preview",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              665
+            ],
+            [
+              115,
+              665
+            ],
+            [
+              115,
+              684
+            ],
+            [
+              0,
+              684
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-50",
+          "content": "Click \"Decode JSON\" to render the HTML preview.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              684
+            ],
+            [
+              451,
+              684
+            ],
+            [
+              451,
+              703
+            ],
+            [
+              0,
+              703
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811723019-page-1-text-51",
+          "content": "Preview is an approximation based on the IntermediateDocument layout.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              703
+            ],
+            [
+              662,
+              703
+            ],
+            [
+              662,
+              722
+            ],
+            [
+              0,
+              722
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        }
+      ],
+      "images": []
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+Task 5 CSS visual capture policy
+
+Keep categories:
+- background: background, background-* including background-image gradients, size, position, repeat, and background-color when non-transparent
+- border: border, border-* when side width is non-zero and side style is visible; border radius when non-zero
+- outline: outline and outline-* when outline width is non-zero and outline style is visible
+- shadows: box-shadow and text-shadow when not none
+- spacing/clip visuals: padding, padding-*, overflow, overflow-*
+- text visuals: color, font-*, text-*
+- broad layout visuals: display, flex-*, grid-*, align-*, justify-*, place-*, gap, row-gap, column-gap
+- opacity and visibility
+
+Value filters:
+- Skip empty, none, initial, inherit, unset, auto, auto auto.
+- Skip transparent colors, including transparent background-color.
+- Skip zero lengths for padding, radius, width, gap, outline-offset, text-indent, letter-spacing, and word-spacing.
+- Skip default/noisy computed values currently observed from the test DOM: direction ltr, display block, default Times New Roman font family, 16px font size, normal font stretch/style/variant/weight/line-height.
+- Skip default overflow visible, background repeat, and 0% 0% background positions.
+
+Denylist:
+- animation and animation-* including timing/delay/duration/name/play-state/range/timeline fields
+- transition and transition-* including timing/delay/duration/property/behavior fields
+- cursor, pointer-events, user-select, caret-color, will-change, resize
+- scroll-* and overscroll-* behavior/noise
+- transform, filter, backdrop-filter, mix-blend-mode
+- CSS custom properties, ARIA/accessibility field names, role
+- vendor/private/internal property names beginning with '-' and any property/value containing -internal-
+
+Explicitly out of scope:
+- No pseudo-element capture.
+- No URL background fetching or resolving outside DOM/html2canvas.
+- No unfiltered getComputedStyle() dump.

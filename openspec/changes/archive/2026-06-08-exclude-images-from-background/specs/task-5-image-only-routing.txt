@@ -1,0 +1,768 @@
+
+> @hamster-note/html-parser@0.7.0 test
+> NODE_OPTIONS='--experimental-vm-modules' jest --runInBand src/__tests__/renderer.test.ts -t excludeImagesFromBackground
+
+  console.log
+    [HtmlParser] [computeTextStyle] 开始计算文本样式 { textId: 'text-1', content: 'Hello renderer', fontSize: 16 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [validatePolygon] 验证 polygon { pointCount: 4 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [validatePolygon] polygon 验证通过
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 锚点 { anchorX: 10, anchorY: 20 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeRotationDeg] 旋转角度 { p0: [ 10, 20 ], p1: [ 110, 20 ], rotationDeg: 0 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTargetWidth] 目标宽度 { p0: [ 10, 20 ], p1: [ 110, 20 ], width: 100 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTargetHeight] 目标高度 { p1: [ 110, 20 ], p2: [ 110, 60 ], height: 40 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] Polygon 几何信息 { rotationDeg: 0, targetWidth: 100, targetHeight: 40 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [measureTextBaseline] 调用 pretext adapter {
+      text: 'Hello renderer',
+      fontSize: 16,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      italic: false,
+      maxWidth: 100,
+      lineHeight: 20
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [pretext] 开始测量 {
+      text: 'Hello renderer',
+      font: '400 16px Inter',
+      maxWidth: 100,
+      lineHeight: 20
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 基准测量失败，回退到无缩放样式 {
+      error: Error: Text measurement requires OffscreenCanvas or a DOM canvas context.
+          at getMeasureContext (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/measurement.js:25:11)
+          at getFontMeasurementState (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/measurement.js:210:17)
+          at measureAnalysis (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:196:40)
+          at prepareInternal (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:352:12)
+          at prepareWithSegments (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:374:12)
+          at DefaultPretextAdapter.prepareWithSegments [as measure] (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textMeasurement.ts:44:22)
+          at measure (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textMeasurement.ts:73:33)
+          at measureTextBaseline (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textStyle.ts:113:22)
+          at computeTextStyle (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/pageThumbnailDom.ts:248:28)
+          at Array.forEach (<anonymous>)
+          at forEach (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/pageThumbnailDom.ts:241:16)
+          at /home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/__tests__/renderer.test.ts:852:20
+          at fn (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/testUtils/domTestUtils.ts:23:18)
+          at Object.<anonymous> (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/__tests__/renderer.test.ts:851:10)
+          at Promise.finally.completed (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+          at _callCircusTest (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+          at _runTest (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+          at /home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at run (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+          at jestAdapter (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-runner/build/index.js:343:7),
+      targetWidth: 100,
+      targetHeight: 40
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 样式计算完成 {
+      left: 10,
+      top: 20,
+      rotationDeg: 0,
+      scaleX: 1,
+      scaleY: 1,
+      transform: 'rotate(0deg) scale(1, 1)',
+      transformOrigin: '0 0',
+      fontSize: 16,
+      lineHeight: 20,
+      fontWeight: 400,
+      italic: false,
+      color: '#111111',
+      fontFamily: 'Inter',
+      dir: 'ltr',
+      writingMode: 'horizontal-tb'
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [formatTextCssStyle] 格式化 CSS 样式 { scale: 1, fontSize: 16, lineHeight: 20 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [formatTextCssStyle] CSS 样式格式化完成 {
+      position: 'absolute',
+      left: '10px',
+      top: '20px',
+      'font-size': '16px',
+      'line-height': '20px',
+      'font-weight': '400',
+      'font-style': 'normal',
+      'font-family': 'Inter',
+      color: '#111111',
+      direction: 'ltr',
+      'writing-mode': 'horizontal-tb',
+      'white-space': 'pre',
+      transform: 'rotate(0deg) scale(1, 1)',
+      'transform-origin': '0 0'
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 开始计算文本样式 { textId: 'text-1', content: 'Hello renderer', fontSize: 16 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [validatePolygon] 验证 polygon { pointCount: 4 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [validatePolygon] polygon 验证通过
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 锚点 { anchorX: 10, anchorY: 20 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeRotationDeg] 旋转角度 { p0: [ 10, 20 ], p1: [ 110, 20 ], rotationDeg: 0 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTargetWidth] 目标宽度 { p0: [ 10, 20 ], p1: [ 110, 20 ], width: 100 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTargetHeight] 目标高度 { p1: [ 110, 20 ], p2: [ 110, 60 ], height: 40 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] Polygon 几何信息 { rotationDeg: 0, targetWidth: 100, targetHeight: 40 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [measureTextBaseline] 调用 pretext adapter {
+      text: 'Hello renderer',
+      fontSize: 16,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      italic: false,
+      maxWidth: 100,
+      lineHeight: 20
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [pretext] 开始测量 {
+      text: 'Hello renderer',
+      font: '400 16px Inter',
+      maxWidth: 100,
+      lineHeight: 20
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 基准测量失败，回退到无缩放样式 {
+      error: Error: Text measurement requires OffscreenCanvas or a DOM canvas context.
+          at getMeasureContext (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/measurement.js:25:11)
+          at getFontMeasurementState (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/measurement.js:210:17)
+          at measureAnalysis (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:196:40)
+          at prepareInternal (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:352:12)
+          at prepareWithSegments (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:374:12)
+          at DefaultPretextAdapter.prepareWithSegments [as measure] (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textMeasurement.ts:44:22)
+          at measure (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textMeasurement.ts:73:33)
+          at measureTextBaseline (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textStyle.ts:113:22)
+          at computeTextStyle (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/pageThumbnailDom.ts:248:28)
+          at Array.forEach (<anonymous>)
+          at forEach (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/pageThumbnailDom.ts:241:16)
+          at /home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/__tests__/renderer.test.ts:930:20
+          at fn (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/testUtils/domTestUtils.ts:23:18)
+          at Object.<anonymous> (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/__tests__/renderer.test.ts:929:10)
+          at Promise.finally.completed (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+          at _callCircusTest (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+          at _runTest (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+          at /home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+          at run (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+          at jestAdapter (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-circus/build/runner.js:101:19)
+          at runTestInternal (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-runner/build/index.js:275:16)
+          at runTest (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/jest-runner/build/index.js:343:7),
+      targetWidth: 100,
+      targetHeight: 40
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 样式计算完成 {
+      left: 10,
+      top: 20,
+      rotationDeg: 0,
+      scaleX: 1,
+      scaleY: 1,
+      transform: 'rotate(0deg) scale(1, 1)',
+      transformOrigin: '0 0',
+      fontSize: 16,
+      lineHeight: 20,
+      fontWeight: 400,
+      italic: false,
+      color: '#111111',
+      fontFamily: 'Inter',
+      dir: 'ltr',
+      writingMode: 'horizontal-tb'
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [formatTextCssStyle] 格式化 CSS 样式 { scale: 1, fontSize: 16, lineHeight: 20 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [formatTextCssStyle] CSS 样式格式化完成 {
+      position: 'absolute',
+      left: '10px',
+      top: '20px',
+      'font-size': '16px',
+      'line-height': '20px',
+      'font-weight': '400',
+      'font-style': 'normal',
+      'font-family': 'Inter',
+      color: '#111111',
+      direction: 'ltr',
+      'writing-mode': 'horizontal-tb',
+      'white-space': 'pre',
+      transform: 'rotate(0deg) scale(1, 1)',
+      'transform-origin': '0 0'
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+
+  console.log
+    [HtmlParser] [decodeToHtml] 开始渲染 HTML 片段 {
+      docId: 'doc-with-image-content',
+      title: 'Image Exclusion Routing Test'
+    }
+
+      at log (src/devLog.ts:7:11)
+
+  console.log
+    [HtmlParser] [decodeToHtml] 获取到页面数 1
+
+      at log (src/devLog.ts:7:11)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 开始计算文本样式 { textId: 'text-1', content: 'Hello renderer', fontSize: 16 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [validatePolygon] 验证 polygon { pointCount: 4 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [validatePolygon] polygon 验证通过
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 锚点 { anchorX: 10, anchorY: 20 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [computeRotationDeg] 旋转角度 { p0: [ 10, 20 ], p1: [ 110, 20 ], rotationDeg: 0 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [computeTargetWidth] 目标宽度 { p0: [ 10, 20 ], p1: [ 110, 20 ], width: 100 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [computeTargetHeight] 目标高度 { p1: [ 110, 20 ], p2: [ 110, 60 ], height: 40 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [computeTextStyle] Polygon 几何信息 { rotationDeg: 0, targetWidth: 100, targetHeight: 40 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [measureTextBaseline] 调用 pretext adapter {
+      text: 'Hello renderer',
+      fontSize: 16,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      italic: false,
+      maxWidth: 100,
+      lineHeight: 20
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [pretext] 开始测量 {
+      text: 'Hello renderer',
+      font: '400 16px Inter',
+      maxWidth: 100,
+      lineHeight: 20
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 基准测量失败，回退到无缩放样式 {
+      error: TypeError: Cannot set properties of null (setting 'font')
+          at getFontMeasurementState (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/measurement.js:211:13)
+          at measureAnalysis (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:196:40)
+          at prepareInternal (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:352:12)
+          at prepareWithSegments (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:374:12)
+          at DefaultPretextAdapter.prepareWithSegments [as measure] (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textMeasurement.ts:44:22)
+          at measure (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textMeasurement.ts:73:33)
+          at measureTextBaseline (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textStyle.ts:113:22)
+          at computeTextStyle (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/pageThumbnailDom.ts:248:28)
+          at Array.forEach (<anonymous>)
+          at forEach (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/pageThumbnailDom.ts:241:16)
+          at buildOffscreenPageElement (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/index.ts:244:12)
+          at HtmlParser.buildDecodePagePayload (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/index.ts:1051:7)
+          at async Promise.all (index 0)
+          at HtmlParser.decodeToHtml (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/index.ts:2143:23)
+          at /home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/__tests__/renderer.test.ts:980:21
+          at withDomDocument (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/testUtils/domTestUtils.ts:23:12)
+          at Object.<anonymous> (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/__tests__/renderer.test.ts:966:4),
+      targetWidth: 100,
+      targetHeight: 40
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 样式计算完成 {
+      left: 10,
+      top: 20,
+      rotationDeg: 0,
+      scaleX: 1,
+      scaleY: 1,
+      transform: 'rotate(0deg) scale(1, 1)',
+      transformOrigin: '0 0',
+      fontSize: 16,
+      lineHeight: 20,
+      fontWeight: 400,
+      italic: false,
+      color: '#111111',
+      fontFamily: 'Inter',
+      dir: 'ltr',
+      writingMode: 'horizontal-tb'
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [formatTextCssStyle] 格式化 CSS 样式 { scale: 1, fontSize: 16, lineHeight: 20 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+  console.log
+    [HtmlParser] [formatTextCssStyle] CSS 样式格式化完成 {
+      position: 'absolute',
+      left: '10px',
+      top: '20px',
+      'font-size': '16px',
+      'line-height': '20px',
+      'font-weight': '400',
+      'font-style': 'normal',
+      'font-family': 'Inter',
+      color: '#111111',
+      direction: 'ltr',
+      'writing-mode': 'horizontal-tb',
+      'white-space': 'pre',
+      transform: 'rotate(0deg) scale(1, 1)',
+      'transform-origin': '0 0'
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.forEach (<anonymous>)
+          at async Promise.all (index 0)
+
+(node:2960559) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+  console.log
+    [HtmlParser] [computeTextStyle] 开始计算文本样式 { textId: 'text-1', content: 'Hello renderer', fontSize: 16 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [validatePolygon] 验证 polygon { pointCount: 4 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [validatePolygon] polygon 验证通过
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 锚点 { anchorX: 10, anchorY: 20 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeRotationDeg] 旋转角度 { p0: [ 10, 20 ], p1: [ 110, 20 ], rotationDeg: 0 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTargetWidth] 目标宽度 { p0: [ 10, 20 ], p1: [ 110, 20 ], width: 100 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTargetHeight] 目标高度 { p1: [ 110, 20 ], p2: [ 110, 60 ], height: 40 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] Polygon 几何信息 { rotationDeg: 0, targetWidth: 100, targetHeight: 40 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [measureTextBaseline] 调用 pretext adapter {
+      text: 'Hello renderer',
+      fontSize: 16,
+      fontFamily: 'Inter',
+      fontWeight: 400,
+      italic: false,
+      maxWidth: 100,
+      lineHeight: 20
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [pretext] 开始测量 {
+      text: 'Hello renderer',
+      font: '400 16px Inter',
+      maxWidth: 100,
+      lineHeight: 20
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 基准测量失败，回退到无缩放样式 {
+      error: TypeError: Cannot set properties of null (setting 'font')
+          at getFontMeasurementState (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/measurement.js:211:13)
+          at measureAnalysis (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:196:40)
+          at prepareInternal (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:352:12)
+          at prepareWithSegments (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/node_modules/@chenglou/pretext/dist/layout.js:374:12)
+          at DefaultPretextAdapter.prepareWithSegments [as measure] (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textMeasurement.ts:44:22)
+          at measure (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textMeasurement.ts:73:33)
+          at measureTextBaseline (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/textStyle.ts:113:22)
+          at computeTextStyle (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/htmlParserWorkerCore.ts:176:24)
+          at renderTextSpan (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/htmlParserWorkerCore.ts:240:48)
+          at Array.map (<anonymous>)
+          at map (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/htmlParserWorkerCore.ts:239:6)
+          at renderPageDiv (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/htmlParserWorkerCore.ts:258:20)
+          at Array.map (<anonymous>)
+          at map (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/htmlParserWorkerCore.ts:258:6)
+          at renderDecodeHtmlFromPayload (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/htmlParserWorkerClient.ts:97:29)
+          at HtmlParser.runDecodeHtmlInWorker [as decodeToHtml] (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/index.ts:2146:24)
+          at /home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/__tests__/renderer.test.ts:980:21
+          at withDomDocument (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/testUtils/domTestUtils.ts:23:12)
+          at Object.<anonymous> (/home/zhangxiao/frontend/worktrees/HtmlParser/fix-english-height/src/__tests__/renderer.test.ts:966:4),
+      targetWidth: 100,
+      targetHeight: 40
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [computeTextStyle] 样式计算完成 {
+      left: 10,
+      top: 20,
+      rotationDeg: 0,
+      scaleX: 1,
+      scaleY: 1,
+      transform: 'rotate(0deg) scale(1, 1)',
+      transformOrigin: '0 0',
+      fontSize: 16,
+      lineHeight: 20,
+      fontWeight: 400,
+      italic: false,
+      color: '#111111',
+      fontFamily: 'Inter',
+      dir: 'ltr',
+      writingMode: 'horizontal-tb'
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [formatTextCssStyle] 格式化 CSS 样式 { scale: 1, fontSize: 16, lineHeight: 20 }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [formatTextCssStyle] CSS 样式格式化完成 {
+      position: 'absolute',
+      left: '10px',
+      top: '20px',
+      'font-size': '16px',
+      'line-height': '20px',
+      'font-weight': '400',
+      'font-style': 'normal',
+      'font-family': 'Inter',
+      color: '#111111',
+      direction: 'ltr',
+      'writing-mode': 'horizontal-tb',
+      'white-space': 'pre',
+      transform: 'rotate(0deg) scale(1, 1)',
+      'transform-origin': '0 0'
+    }
+
+      at log (src/devLog.ts:7:11)
+          at Array.map (<anonymous>)
+          at Array.map (<anonymous>)
+
+  console.log
+    [HtmlParser] [decodeToHtml] HTML 片段渲染完成 { length: 1247 }
+
+      at log (src/devLog.ts:7:11)
+
+PASS src/__tests__/renderer.test.ts
+  renderer alignment
+    ○ skipped renders a non-rotated polygon with the shared transform pipeline
+    ○ skipped renders a rotated polygon with the same transform in both renderers
+    ○ skipped renders text even when baseline measurement fails
+    ○ skipped renders text-like objects without relying on class identity
+  decodeToHtml textControl overrides
+    ○ skipped legacy no-options decode produces identical output
+    ○ skipped applies color, fontSize, fontWeight to every text span
+    ○ skipped overrides falsy boolean fields (italic, vertical) even when originals are true
+    ○ skipped static decode forwards options to decodeToHtml
+    ○ skipped static decode does not vertically shrink text with signed negative descent
+    ○ skipped does not mutate source text/page/document after decode with overrides
+    ○ skipped text-like plain objects remain supported with overrides
+  decodeToHtml background options
+    ○ skipped skips background rendering when includeBackground is false
+    ○ skipped passes the configured backgroundQuality to getThumbnail
+    ○ skipped keeps the default background quality when options are omitted
+    ○ skipped excludes text spans from background capture when excludeTextFromBackground is true
+    ○ skipped buildOffscreenPageElement omits text spans when excludeTextFromBackground is true
+    ○ skipped buildOffscreenPageElement renders images regardless of excludeTextFromBackground
+    ○ skipped buildOffscreenPageElement renders clipped images with clip-path
+    ○ skipped keeps images in background capture while excluding text when excludeTextFromBackground is true
+    excludeImagesFromBackground
+      ✓ buildOffscreenPageElement omits image elements when excludeImagesFromBackground is true (110 ms)
+      ✓ buildOffscreenPageElement renders images when excludeImagesFromBackground is false or undefined (7 ms)
+      ✓ keeps text spans while omitting images for image-only background exclusion (26 ms)
+      ✓ routes image-only background exclusion through captureThumbnail instead of getThumbnail (92 ms)
+  Task 1 decode page container assumption probe
+    ○ skipped documents rendered page containers as absolute positioning contexts
+  decode HTML foreground image rendering
+    ○ skipped renders an IntermediateImage as a positioned <img> in decode HTML
+    ○ skipped orders foreground images and text spans by sourceOrder/content order
+    ○ skipped applies bbox-derived left/top/width/height from polygon
+    ○ skipped renders subpixel image bbox values as px, not percent
+    ○ skipped text z-index is higher than image z-index
+    ○ skipped emits clip-path inset when image.clip is provided
+    ○ skipped falls back to bbox when polygon is not axis-aligned (rotated)
+  background style whitelist capture
+    ○ skipped captures background-color, border, border-radius, box-shadow, outline into offscreen DOM when excludeTextFromBackground is true
+    ○ skipped omits text content from captured visual containers
+    ○ skipped skips transform/filter/mix-blend-mode (non-whitelist properties)
+    ○ skipped skips elements with zero rect or no visible whitelist style
+    ○ skipped geometry uses element getBoundingClientRect-derived px values
+    ○ skipped threads encode source DOM into excludeTextFromBackground thumbnail capture
+
+----------------------------|---------|----------|---------|---------|----------------------------------------------------------------------------------------------------
+File                        | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                                                  
+----------------------------|---------|----------|---------|---------|----------------------------------------------------------------------------------------------------
+All files                   |   20.27 |    11.91 |   22.18 |   21.45 |                                                                                                    
+ src                        |   20.15 |    14.61 |   25.59 |   21.26 |                                                                                                    
+  HtmlDocument.ts           |       0 |        0 |       0 |       0 | 9-104                                                                                              
+  HtmlPage.ts               |    6.97 |     12.5 |    12.5 |    6.97 | 21-115                                                                                             
+  decodeTextControl.ts      |      12 |     5.55 |      50 |      12 | 65-86,105-123                                                                                      
+  devLog.ts                 |   22.22 |    27.77 |   33.33 |   22.22 | 3,11-25                                                                                            
+  htmlParserWorkerClient.ts |      25 |    18.75 |   42.85 |   19.35 | 28-33,43-85,99-102                                                                                 
+  htmlParserWorkerCore.ts   |    60.6 |       50 |      75 |   64.28 | 78-142,218-222,242,247,274                                                                         
+  index.ts                  |     6.1 |     2.62 |    6.77 |    6.68 | 69-107,125-215,237-238,274-275,287-452,458-532,596-985,997-1012,1033,1075-1995,2017-2125,2165-2185 
+  intermediateTextGuard.ts  |      75 |    85.71 |     100 |      75 | 17,30                                                                                              
+  pageThumbnailDom.ts       |      30 |    13.04 |   26.66 |   31.66 | 47-208,220,254-259,294-295                                                                         
+  textCssStyle.ts           |   77.27 |    52.38 |   71.42 |   89.47 | 57,62                                                                                              
+  textGeometry.ts           |   81.57 |       65 |     100 |   81.57 | 22,29,35,45,51,61,67                                                                               
+  textMeasurement.ts        |   44.44 |    21.42 |      50 |   44.44 | 45-48,55,59,74-75,84-103                                                                           
+  textStyle.ts              |   79.66 |       60 |     100 |   87.03 | 57,91,122-132                                                                                      
+ src/mock                   |   41.66 |        0 |       0 |   41.66 |                                                                                                    
+  constants.ts              |     100 |      100 |     100 |     100 |                                                                                                    
+  errors.ts                 |    12.5 |        0 |       0 |    12.5 | 7-8,13-21                                                                                          
+ src/mock/api               |   17.14 |        0 |       0 |   17.64 |                                                                                                    
+  coverageReportApi.ts      |      20 |      100 |       0 |      20 | 9-13                                                                                               
+  mockConfigApi.ts          |   19.04 |        0 |       0 |      20 | 24-28,40-44,51-71                                                                                  
+  mockDatasetApi.ts         |   11.11 |        0 |       0 |   11.11 | 14-24                                                                                              
+ src/mock/generation        |   11.02 |        0 |       0 |      12 |                                                                                                    
+  datasetBuilder.ts         |    8.33 |        0 |       0 |    9.37 | 11-14,23,35-74                                                                                     
+  determinism.ts            |   11.76 |        0 |       0 |    12.5 | 11,17-39                                                                                           
+  fieldValueGenerator.ts    |   13.11 |        0 |       0 |   14.03 | 8-13,19-21,27-29,36-63,71-92,97-117                                                                
+  prng.ts                   |    9.09 |        0 |       0 |      10 | 2-7,17-34                                                                                          
+ src/mock/services          |   17.02 |        0 |       0 |   17.77 |                                                                                                    
+  coverageReportService.ts  |   13.33 |        0 |       0 |   13.33 | 13-31,42-67                                                                                        
+  mockConfigService.ts      |      20 |        0 |       0 |   21.05 | 17-29,35-39,45-50                                                                                  
+  mockDatasetService.ts     |   16.66 |        0 |       0 |   18.18 | 18-31                                                                                              
+ src/mock/store             |   57.14 |      100 |      20 |   57.14 |                                                                                                    
+  mockStores.ts             |   57.14 |      100 |      20 |   57.14 | 13-16,26-28                                                                                        
+ src/mock/validators        |   11.39 |        0 |       0 |   12.85 |                                                                                                    
+  configValidator.ts        |   12.96 |        0 |       0 |   14.28 | 15-40,44-45,51,60,66-87,94-119,124                                                                 
+  constraintValidator.ts    |       8 |        0 |       0 |    9.52 | 4-7,13-62                                                                                          
+ src/mock/versioning        |   17.64 |        0 |       0 |   18.75 |                                                                                                    
+  configVersioning.ts       |   17.64 |        0 |       0 |   18.75 | 4-9,13-20,24-30                                                                                    
+ src/testUtils              |   64.86 |    66.66 |   72.72 |   64.86 |                                                                                                    
+  domTestUtils.ts           |    42.1 |        0 |   33.33 |    42.1 | 7-11,33-43                                                                                         
+  html2canvasTestUtils.ts   |   88.88 |    85.71 |    87.5 |   88.88 | 39,61                                                                                              
+----------------------------|---------|----------|---------|---------|----------------------------------------------------------------------------------------------------
+Test Suites: 1 passed, 1 total
+Tests:       33 skipped, 4 passed, 37 total
+Snapshots:   0 total
+Time:        4.163 s
+Ran all test suites matching src/__tests__/renderer.test.ts with tests matching "excludeImagesFromBackground".

@@ -1,0 +1,30 @@
+# Task 3 — Demo forwarding test results
+# Date: 2026-06-08
+
+## Test run: excludeImagesFromBackground forwarding tests
+
+All 3 forwarding tests PASS (not red). The forwarding mechanism in
+`decodeSerializedDocumentToHtml` is generic (line 178-180 of demoDocumentSerialization.js):
+
+    if (serialized.background && typeof serialized.background === 'object') {
+      options.background = serialized.background
+    }
+
+Any fields in `serialized.background` are passed through as-is. The TDD "red" tests
+that Task 6 will flip green are in `renderer.test.ts` (Task 2), which test the actual
+downstream consumption of `excludeImagesFromBackground`.
+
+## Test results:
+- ✓ forwards excludeImagesFromBackground through data.background to injected decodeToHtml
+- ✓ forwards excludeImagesFromBackground independently without excludeTextFromBackground
+- ✓ existing background options remain forwarded alongside excludeImagesFromBackground (regression)
+
+## Why these are green (not red):
+The demo serialization layer's forwarding is a simple object pass-through.
+The actual "missing" implementation is in:
+1. `BackgroundDecodeOptions` type (demoDocumentSerialization.d.ts line 63-67) — lacks the field
+2. `src/index.ts` captureThumbnail/buildDecodePagePayload — doesn't route on the field
+3. `src/pageThumbnailDom.ts` — doesn't gate image rendering on the field
+4. Demo UI (encode.html) — no checkbox for the option
+
+These tests serve as forwarding CONTRACT tests that document the expected data flow.

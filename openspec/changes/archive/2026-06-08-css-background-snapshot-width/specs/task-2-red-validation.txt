@@ -1,0 +1,31 @@
+  ● HtmlParser › HtmlParser.encode snapshotWidth › valid snapshotWidth values › accepts snapshotWidth=100 and passes it to html2canvas
+    Expected: > 0
+    Received:   0
+  ● HtmlParser › HtmlParser.encode snapshotWidth › valid snapshotWidth values › accepts snapshotWidth=640 and passes it to html2canvas
+    Expected: > 0
+    Received:   0
+  ● HtmlParser › HtmlParser.encode snapshotWidth › valid snapshotWidth values › accepts snapshotWidth=10000 and passes it to html2canvas
+    Expected: > 0
+    Received:   0
+  ● HtmlParser › HtmlParser.encode snapshotWidth › omitted/undefined snapshotWidth › accepts undefined snapshotWidth with unchanged behavior
+  ● HtmlParser › HtmlParser.encode snapshotWidth › invalid snapshotWidth values › rejects snapshotWidth that is below minimum (99)
+    expect(received).rejects.toThrow()
+    Received promise resolved instead of rejected
+  ● HtmlParser › HtmlParser.encode snapshotWidth › invalid snapshotWidth values › rejects snapshotWidth that is above maximum (10001)
+    expect(received).rejects.toThrow()
+    Received promise resolved instead of rejected
+  ● HtmlParser › HtmlParser.encode snapshotWidth › invalid snapshotWidth values › rejects snapshotWidth that is zero
+    expect(received).rejects.toThrow()
+    Received promise resolved instead of rejected
+  ● HtmlParser › HtmlParser.encode snapshotWidth › invalid snapshotWidth values › rejects snapshotWidth that is negative
+    expect(received).rejects.toThrow()
+    Received promise resolved instead of rejected
+  ● HtmlParser › HtmlParser.encode snapshotWidth › invalid snapshotWidth values › rejects snapshotWidth that is NaN
+    expect(received).rejects.toThrow()
+    Received promise resolved instead of rejected
+  ● HtmlParser › HtmlParser.encode snapshotWidth › invalid snapshotWidth values › rejects snapshotWidth that is Infinity
+    expect(received).rejects.toThrow()
+    Received promise resolved instead of rejected
+  ● HtmlParser › HtmlParser.encode snapshotWidth › invalid snapshotWidth values › rejects snapshotWidth that is decimal
+    expect(received).rejects.toThrow()
+    Received promise resolved instead of rejected

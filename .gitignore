@@ -32,6 +32,14 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Python E2E 测试相关
+.venv/
+.pytest_cache/
+__pycache__/
+test-results/
+playwright-report/
+reports/
+
 # IDE和编辑器配置（可选）
 .vscode/
 .idea/
@@ -42,4 +50,5 @@ coverage/
 
 # 工具生成的配置和缓存
 .opencode/
+.omo/
 .specify/

@@ -1,8 +1,9 @@
-import { setHtml2CanvasLoader } from '../index.js'
-import type { Html2CanvasLike } from '../index.js'
+import { type Html2CanvasLike, setHtml2CanvasLoader } from '../index.js'
 
 export interface FakeHtml2CanvasOptions {
   behavior?: 'resolve' | 'reject'
+  canvasWidth?: number
+  canvasHeight?: number
   dataUrl?: string
   error?: Error
   loaderDelayMs?: number
@@ -25,6 +26,8 @@ export function installFakeHtml2Canvas(
 ): FakeHtml2CanvasHandle {
   const {
     behavior = 'resolve',
+    canvasWidth,
+    canvasHeight,
     dataUrl = 'data:image/png;base64,FAKE',
     error = new Error('html2canvas mock rejection'),
     loaderDelayMs = 0,
@@ -39,8 +42,10 @@ export function installFakeHtml2Canvas(
       return Promise.reject(error)
     }
     return Promise.resolve({
+      ...(canvasWidth !== undefined ? { width: canvasWidth } : {}),
+      ...(canvasHeight !== undefined ? { height: canvasHeight } : {}),
       toDataURL: (_type?: string) => dataUrl,
-    })
+    } as Awaited<ReturnType<Html2CanvasLike>>)
   }
 
   const loader = (): Promise<Html2CanvasLike> => {

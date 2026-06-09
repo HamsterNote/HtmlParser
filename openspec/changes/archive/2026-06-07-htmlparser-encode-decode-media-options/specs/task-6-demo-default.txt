@@ -1,0 +1,866 @@
+{
+  "id": "html-1780811722897",
+  "title": "HtmlParser Demo - Encode",
+  "outline": [],
+  "pages": [
+    {
+      "id": "html-1780811722897-page-1",
+      "number": 1,
+      "width": 800,
+      "height": 342,
+      "texts": [
+        {
+          "id": "html-1780811722897-page-1-text-0",
+          "content": "Sample content",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              0
+            ],
+            [
+              134,
+              0
+            ],
+            [
+              134,
+              19
+            ],
+            [
+              0,
+              19
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-1",
+          "content": "This page contains mixed content:",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              19
+            ],
+            [
+              317,
+              19
+            ],
+            [
+              317,
+              38
+            ],
+            [
+              0,
+              38
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811722897-page-1-text-2",
+          "content": "bold text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              317,
+              19
+            ],
+            [
+              403,
+              19
+            ],
+            [
+              403,
+              38
+            ],
+            [
+              317,
+              38
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811722897-page-1-text-3",
+          "content": ",",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              403,
+              19
+            ],
+            [
+              413,
+              19
+            ],
+            [
+              413,
+              38
+            ],
+            [
+              403,
+              38
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811722897-page-1-text-4",
+          "content": "italic text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": true,
+          "color": "#000",
+          "polygon": [
+            [
+              413,
+              19
+            ],
+            [
+              519,
+              19
+            ],
+            [
+              519,
+              38
+            ],
+            [
+              413,
+              38
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811722897-page-1-text-5",
+          "content": ", and",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              519,
+              19
+            ],
+            [
+              567,
+              19
+            ],
+            [
+              567,
+              38
+            ],
+            [
+              519,
+              38
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811722897-page-1-text-6",
+          "content": "colored text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#e11d48",
+          "polygon": [
+            [
+              567,
+              19
+            ],
+            [
+              682,
+              19
+            ],
+            [
+              682,
+              38
+            ],
+            [
+              567,
+              38
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811722897-page-1-text-7",
+          "content": ".",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              682,
+              19
+            ],
+            [
+              692,
+              19
+            ],
+            [
+              692,
+              38
+            ],
+            [
+              682,
+              38
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-8",
+          "content": "HtmlParser will walk the DOM, collect text nodes, and estimate a simple layout for each line.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              38
+            ],
+            [
+              893,
+              38
+            ],
+            [
+              893,
+              57
+            ],
+            [
+              0,
+              57
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-9",
+          "content": "Styled background sample text appears before the inline image so mixed content order can be inspected.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              57
+            ],
+            [
+              979,
+              57
+            ],
+            [
+              979,
+              76
+            ],
+            [
+              0,
+              76
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": false
+        },
+        {
+          "id": "html-1780811722897-page-1-text-10",
+          "content": "More styled sample text follows the image.",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              979,
+              57
+            ],
+            [
+              1382,
+              57
+            ],
+            [
+              1382,
+              76
+            ],
+            [
+              979,
+              76
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-11",
+          "content": "Special text cases",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              76
+            ],
+            [
+              173,
+              76
+            ],
+            [
+              173,
+              95
+            ],
+            [
+              0,
+              95
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-12",
+          "content": "<br>",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              95
+            ],
+            [
+              38,
+              95
+            ],
+            [
+              38,
+              114
+            ],
+            [
+              0,
+              114
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-13",
+          "content": "First line",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              114
+            ],
+            [
+              96,
+              114
+            ],
+            [
+              96,
+              133
+            ],
+            [
+              0,
+              133
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-14",
+          "content": "Second line",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              133
+            ],
+            [
+              106,
+              133
+            ],
+            [
+              106,
+              152
+            ],
+            [
+              0,
+              152
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-15",
+          "content": "Rotated text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              152
+            ],
+            [
+              115,
+              152
+            ],
+            [
+              115,
+              171
+            ],
+            [
+              0,
+              171
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-16",
+          "content": "Rotate me",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              171
+            ],
+            [
+              86,
+              171
+            ],
+            [
+              86,
+              190
+            ],
+            [
+              0,
+              190
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-17",
+          "content": "Scaled text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              190
+            ],
+            [
+              106,
+              190
+            ],
+            [
+              106,
+              209
+            ],
+            [
+              0,
+              209
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-18",
+          "content": "Scale me",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              209
+            ],
+            [
+              77,
+              209
+            ],
+            [
+              77,
+              228
+            ],
+            [
+              0,
+              228
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-19",
+          "content": "Transform translate",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              228
+            ],
+            [
+              182,
+              228
+            ],
+            [
+              182,
+              247
+            ],
+            [
+              0,
+              247
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-20",
+          "content": "Translate me",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              247
+            ],
+            [
+              115,
+              247
+            ],
+            [
+              115,
+              266
+            ],
+            [
+              0,
+              266
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-21",
+          "content": "Shadow text",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              266
+            ],
+            [
+              106,
+              266
+            ],
+            [
+              106,
+              285
+            ],
+            [
+              0,
+              285
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-22",
+          "content": "Shadow me",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              285
+            ],
+            [
+              86,
+              285
+            ],
+            [
+              86,
+              304
+            ],
+            [
+              0,
+              304
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-23",
+          "content": "Native vertical",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              304
+            ],
+            [
+              144,
+              304
+            ],
+            [
+              144,
+              323
+            ],
+            [
+              0,
+              323
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        },
+        {
+          "id": "html-1780811722897-page-1-text-24",
+          "content": "原生竖排文字",
+          "fontSize": 16,
+          "fontFamily": "",
+          "fontWeight": 400,
+          "italic": false,
+          "color": "#000",
+          "polygon": [
+            [
+              0,
+              323
+            ],
+            [
+              58,
+              323
+            ],
+            [
+              58,
+              342
+            ],
+            [
+              0,
+              342
+            ]
+          ],
+          "lineHeight": 19.2,
+          "ascent": 13,
+          "descent": 3,
+          "vertical": false,
+          "dir": "ltr",
+          "skew": 0,
+          "isEOL": true
+        }
+      ],
+      "images": []
+    }
+  ]
+}
