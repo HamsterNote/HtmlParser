@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0-beta] - 2026-07-02
+
+### Added
+- 新增 `snapshotWidth` 选项，支持自定义截图宽度，优化页面预览图生成
+- 增强 CSS 可视样式捕获能力，更全面地保留元素的视觉样式信息
+
 ## [0.8.0] - 2026-06-01
 
 ### Fixed
