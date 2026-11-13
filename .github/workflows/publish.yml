@@ -1,10 +1,10 @@
-name: Publish to npm (version branches)
+name: Publish to npm (tags)
 
 on:
   push:
-    branches:
-      - 'version/[0-9]+.[0-9]+.[0-9]+'
-      - 'version/[0-9]+.[0-9]+.[0-9]+-**'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
 
 permissions:
   contents: read
@@ -20,41 +20,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 解析分支类型并设定 npm dist-tag
-      - name: Classify branch and prepare env
-        run: |
-          BRANCH="${GITHUB_REF#refs/heads/}"
-          echo "Detected branch: $BRANCH"
-
-          # 从分支名称提取版本号：version/1.0.0 -> 1.0.0
-          VERSION="${BRANCH#version/}"
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-
-          # 根据 package.json 的 version 判断是否为预发布版本
-          PKG_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")
-
-          if [[ "$PKG_VERSION" =~ -dev ]]; then
-            echo "PUBLISH_TAG=dev" >> "$GITHUB_ENV"
-            echo "Version type: Dev Pre-release"
-          elif [[ "$PKG_VERSION" =~ -beta ]]; then
-            echo "PUBLISH_TAG=beta" >> "$GITHUB_ENV"
-            echo "Version type: Beta Pre-release"
-          else
-            echo "PUBLISH_TAG=latest" >> "$GITHUB_ENV"
-            echo "Version type: Release"
-          fi
-
-          echo "Branch version: $VERSION"
-          echo "Package version: $PKG_VERSION"
-          echo "Publish tag: $PUBLISH_TAG"
-
-      # 安装 Node，并配置 npm registry（用于 npm publish 鉴权）
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24.15.0
           registry-url: https://registry.npmjs.org
           cache: yarn
+
+      # Tag and package versions must agree before any install/build/publish.
+      - name: Validate release tag and classify dist-tag
+        shell: bash
+        run: node .github/scripts/release-metadata.cjs validate "${GITHUB_REF#refs/tags/}" package.json
 
       # 使用 Yarn 安装依赖（项目包含 yarn.lock）
       - name: Install dependencies
